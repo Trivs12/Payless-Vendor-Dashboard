@@ -51,8 +51,8 @@ ChartJS.register(
 );
 
 const BRAND_COLORS = {
-  current: '#0070c9',
-  previous: '#94a3b8',
+  current: '#1a8b6e',
+  previous: '#b0cec5',
 };
 
 // Loading skeleton component
@@ -715,55 +715,94 @@ export default function VendorDashboard() {
                     {(() => {
                       const hasDailyData = Object.keys(dailyData).length > 0;
 
+                      // Shared chart style options (Shopify-like)
+                      const shopifyChartOptions = {
+                        responsive: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                          legend: {
+                            position: 'bottom',
+                            labels: {
+                              usePointStyle: true,
+                              pointStyle: 'circle',
+                              padding: 20,
+                              font: { size: 13 },
+                            },
+                          },
+                          tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            titleFont: { size: 13 },
+                            bodyFont: { size: 13 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                              label: (ctx) => `  ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                            },
+                          },
+                        },
+                        scales: {
+                          x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 12 } },
+                          },
+                          y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            border: { display: false },
+                            ticks: {
+                              color: '#94a3b8',
+                              font: { size: 12 },
+                              callback: (value) => formatCurrency(value),
+                            },
+                          },
+                        },
+                        elements: {
+                          line: { tension: 0.4 },
+                        },
+                      };
+
+                      const currentDataset = (data) => ({
+                        label: 'Current Year',
+                        data,
+                        borderColor: BRAND_COLORS.current,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: BRAND_COLORS.current,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                      });
+
+                      const priorDataset = (data) => ({
+                        label: 'Prior Year',
+                        data,
+                        borderColor: BRAND_COLORS.previous,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: BRAND_COLORS.previous,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                      });
+
                       if (chartView === 'month') {
                         return (
                           <Line
                             data={{
                               labels: filteredMonths,
                               datasets: [
-                                {
-                                  label: 'Current Year',
-                                  data: filteredMonths.map((m) => monthlyTotals[m]?.totalSales || 0),
-                                  borderColor: BRAND_COLORS.current,
-                                  backgroundColor: `${BRAND_COLORS.current}20`,
-                                  borderWidth: 3,
-                                  pointRadius: 6,
-                                  pointBackgroundColor: BRAND_COLORS.current,
-                                  fill: true,
-                                  tension: 0.3,
-                                },
-                                {
-                                  label: 'Prior Year',
-                                  data: filteredMonths.map((m) => monthlyTotals[m]?.prevTotalSales || 0),
-                                  borderColor: BRAND_COLORS.previous,
-                                  backgroundColor: 'transparent',
-                                  borderWidth: 2,
-                                  borderDash: [8, 4],
-                                  pointRadius: 5,
-                                  pointBackgroundColor: BRAND_COLORS.previous,
-                                  pointStyle: 'circle',
-                                  fill: false,
-                                  tension: 0.3,
-                                },
+                                currentDataset(filteredMonths.map((m) => monthlyTotals[m]?.totalSales || 0)),
+                                priorDataset(filteredMonths.map((m) => monthlyTotals[m]?.prevTotalSales || 0)),
                               ],
                             }}
-                            options={{
-                              responsive: true,
-                              plugins: {
-                                legend: { position: 'top' },
-                                tooltip: {
-                                  callbacks: {
-                                    label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
-                                  },
-                                },
-                              },
-                              scales: {
-                                y: {
-                                  beginAtZero: true,
-                                  ticks: { callback: (value) => formatCurrency(value) },
-                                },
-                              },
-                            }}
+                            options={shopifyChartOptions}
                           />
                         );
                       }
@@ -798,62 +837,39 @@ export default function VendorDashboard() {
                           return `Wk ${date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}`;
                         });
 
+                        const weekOptions = {
+                          ...shopifyChartOptions,
+                          plugins: {
+                            ...shopifyChartOptions.plugins,
+                            tooltip: {
+                              ...shopifyChartOptions.plugins.tooltip,
+                              callbacks: {
+                                title: (items) => {
+                                  const wk = weekKeys[items[0].dataIndex];
+                                  const end = new Date(wk + 'T00:00:00');
+                                  end.setDate(end.getDate() + 6);
+                                  return `${wk} to ${end.toISOString().split('T')[0]}`;
+                                },
+                                label: (ctx) => `  ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                              },
+                            },
+                          },
+                          scales: {
+                            ...shopifyChartOptions.scales,
+                            x: { ...shopifyChartOptions.scales.x, ticks: { ...shopifyChartOptions.scales.x.ticks, maxTicksLimit: 20, maxRotation: 45 } },
+                          },
+                        };
+
                         return (
                           <Line
                             data={{
                               labels: weekLabels,
                               datasets: [
-                                {
-                                  label: 'Current Year',
-                                  data: weekKeys.map((wk) => weekMap[wk].totalSales),
-                                  borderColor: BRAND_COLORS.current,
-                                  backgroundColor: `${BRAND_COLORS.current}15`,
-                                  borderWidth: 2.5,
-                                  pointRadius: weekKeys.length > 30 ? 0 : 4,
-                                  pointHoverRadius: 5,
-                                  pointBackgroundColor: BRAND_COLORS.current,
-                                  fill: true,
-                                  tension: 0.3,
-                                },
-                                {
-                                  label: 'Prior Year',
-                                  data: weekKeys.map((wk) => weekMap[wk].prevTotalSales),
-                                  borderColor: BRAND_COLORS.previous,
-                                  backgroundColor: 'transparent',
-                                  borderWidth: 1.5,
-                                  borderDash: [8, 4],
-                                  pointRadius: weekKeys.length > 30 ? 0 : 3,
-                                  pointHoverRadius: 4,
-                                  pointBackgroundColor: BRAND_COLORS.previous,
-                                  fill: false,
-                                  tension: 0.3,
-                                },
+                                currentDataset(weekKeys.map((wk) => weekMap[wk].totalSales)),
+                                priorDataset(weekKeys.map((wk) => weekMap[wk].prevTotalSales)),
                               ],
                             }}
-                            options={{
-                              responsive: true,
-                              plugins: {
-                                legend: { position: 'top' },
-                                tooltip: {
-                                  callbacks: {
-                                    title: (items) => {
-                                      const wk = weekKeys[items[0].dataIndex];
-                                      const end = new Date(wk + 'T00:00:00');
-                                      end.setDate(end.getDate() + 6);
-                                      return `${wk} to ${end.toISOString().split('T')[0]}`;
-                                    },
-                                    label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
-                                  },
-                                },
-                              },
-                              scales: {
-                                x: { ticks: { maxTicksLimit: 20, maxRotation: 45 } },
-                                y: {
-                                  beginAtZero: true,
-                                  ticks: { callback: (value) => formatCurrency(value) },
-                                },
-                              },
-                            }}
+                            options={weekOptions}
                           />
                         );
                       }
@@ -864,55 +880,34 @@ export default function VendorDashboard() {
                         return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
                       });
 
+                      const dayOptions = {
+                        ...shopifyChartOptions,
+                        plugins: {
+                          ...shopifyChartOptions.plugins,
+                          tooltip: {
+                            ...shopifyChartOptions.plugins.tooltip,
+                            callbacks: {
+                              title: (items) => filteredDays[items[0].dataIndex] || '',
+                              label: (ctx) => `  ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                            },
+                          },
+                        },
+                        scales: {
+                          ...shopifyChartOptions.scales,
+                          x: { ...shopifyChartOptions.scales.x, ticks: { ...shopifyChartOptions.scales.x.ticks, maxTicksLimit: 15, maxRotation: 45 } },
+                        },
+                      };
+
                       return (
                         <Line
                           data={{
                             labels: dayLabels,
                             datasets: [
-                              {
-                                label: 'Current Year',
-                                data: filteredDays.map((d) => dailyData[d]?.totalSales || 0),
-                                borderColor: BRAND_COLORS.current,
-                                backgroundColor: `${BRAND_COLORS.current}10`,
-                                borderWidth: 2,
-                                pointRadius: filteredDays.length > 60 ? 0 : 3,
-                                pointHoverRadius: 5,
-                                fill: true,
-                                tension: 0.3,
-                              },
-                              {
-                                label: 'Prior Year',
-                                data: filteredDays.map((d) => dailyData[d]?.prevTotalSales || 0),
-                                borderColor: BRAND_COLORS.previous,
-                                backgroundColor: 'transparent',
-                                borderWidth: 1.5,
-                                borderDash: [6, 3],
-                                pointRadius: filteredDays.length > 60 ? 0 : 2,
-                                pointHoverRadius: 4,
-                                fill: false,
-                                tension: 0.3,
-                              },
+                              currentDataset(filteredDays.map((d) => dailyData[d]?.totalSales || 0)),
+                              priorDataset(filteredDays.map((d) => dailyData[d]?.prevTotalSales || 0)),
                             ],
                           }}
-                          options={{
-                            responsive: true,
-                            plugins: {
-                              legend: { position: 'top' },
-                              tooltip: {
-                                callbacks: {
-                                  title: (items) => filteredDays[items[0].dataIndex] || '',
-                                  label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
-                                },
-                              },
-                            },
-                            scales: {
-                              x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
-                              y: {
-                                beginAtZero: true,
-                                ticks: { callback: (value) => formatCurrency(value) },
-                              },
-                            },
-                          }}
+                          options={dayOptions}
                         />
                       );
                     })()}
@@ -1243,8 +1238,14 @@ export default function VendorDashboard() {
                                 : 0;
                             }),
                             borderColor: BRAND_COLORS.current,
-                            backgroundColor: `${BRAND_COLORS.current}20`,
-                            fill: true,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: BRAND_COLORS.current,
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 2,
+                            fill: false,
                             tension: 0.4,
                           },
                           {
@@ -1259,23 +1260,44 @@ export default function VendorDashboard() {
                                 : 0;
                             }),
                             borderColor: BRAND_COLORS.previous,
-                            backgroundColor: `${BRAND_COLORS.previous}20`,
-                            fill: true,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: BRAND_COLORS.previous,
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 2,
+                            fill: false,
                             tension: 0.4,
                           },
                         ],
                       }}
                       options={{
                         responsive: true,
+                        interaction: { mode: 'index', intersect: false },
                         plugins: {
                           legend: {
-                            position: 'top',
+                            position: 'bottom',
+                            labels: {
+                              usePointStyle: true,
+                              pointStyle: 'circle',
+                              padding: 20,
+                              font: { size: 13 },
+                            },
                           },
                         },
                         scales: {
+                          x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 12 } },
+                          },
                           y: {
                             beginAtZero: true,
                             max: 100,
+                            grid: { color: '#f1f5f9' },
+                            border: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 12 } },
                           },
                         },
                       }}
