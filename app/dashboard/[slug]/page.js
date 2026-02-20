@@ -365,7 +365,7 @@ export default function VendorDashboard() {
   const [monthlyTotals, setMonthlyTotals] = useState({});
   const [categoryMonthly, setCategoryMonthly] = useState({});
   const [months, setMonths] = useState([]);
-  const [activeTab, setActiveTab] = useState('Year-over-Year');
+  const [activeTab, setActiveTab] = useState('Campaign Period');
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [filteredMonths, setFilteredMonths] = useState([]);
   const [exporting, setExporting] = useState(false);
@@ -863,7 +863,7 @@ export default function VendorDashboard() {
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KPICard
-              title="Total Campaign Sales"
+              title="Total Sales"
               value={campaignTotalSales}
               previousValue={campaignPrevSales}
               isCurrency
@@ -890,9 +890,9 @@ export default function VendorDashboard() {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             <TabNavigation
               tabs={[
+                'Campaign Period',
                 'Year-over-Year',
                 'Month-over-Month',
-                'Campaign Period',
                 'Category Share',
               ]}
               activeTab={activeTab}
