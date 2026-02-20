@@ -230,7 +230,7 @@ export default function VendorDashboard() {
   const [filteredMonths, setFilteredMonths] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [dailyData, setDailyData] = useState({});
-  const [chartView, setChartView] = useState('month'); // 'month' or 'day'
+  const [chartView, setChartView] = useState('month'); // 'month', 'week', or 'day'
 
   // Auth check and data loading
   useEffect(() => {
@@ -689,132 +689,59 @@ export default function VendorDashboard() {
                 <div>
                   <InsightBox insights={yoyInsights} />
 
-                  {/* YoY Sales Line Chart with Month/Day Toggle */}
+                  {/* YoY Sales Line Chart with Month/Week/Day Toggle */}
                   <div className="card mb-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-slate-900">
-                        Sales Comparison {chartView === 'month' ? 'by Month' : 'by Day'}
+                        Sales Comparison {chartView === 'month' ? 'by Month' : chartView === 'week' ? 'by Week' : 'by Day'}
                       </h3>
                       <div className="flex bg-slate-100 rounded-lg p-1">
-                        <button
-                          onClick={() => setChartView('month')}
-                          className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                            chartView === 'month'
-                              ? 'bg-white text-blue-600 shadow-sm'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          Month
-                        </button>
-                        <button
-                          onClick={() => setChartView('day')}
-                          disabled={Object.keys(dailyData).length === 0}
-                          className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                            chartView === 'day'
-                              ? 'bg-white text-blue-600 shadow-sm'
-                              : 'text-slate-600 hover:text-slate-900'
-                          } ${Object.keys(dailyData).length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          Day
-                        </button>
+                        {['month', 'week', 'day'].map((view) => (
+                          <button
+                            key={view}
+                            onClick={() => setChartView(view)}
+                            disabled={view !== 'month' && Object.keys(dailyData).length === 0}
+                            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors capitalize ${
+                              chartView === view
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
+                            } ${view !== 'month' && Object.keys(dailyData).length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {view}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    {chartView === 'month' ? (
-                      <Line
-                        data={{
-                          labels: filteredMonths,
-                          datasets: [
-                            {
-                              label: 'Current Year',
-                              data: filteredMonths.map(
-                                (m) => monthlyTotals[m]?.totalSales || 0
-                              ),
-                              borderColor: BRAND_COLORS.current,
-                              backgroundColor: `${BRAND_COLORS.current}20`,
-                              borderWidth: 3,
-                              pointRadius: 6,
-                              pointBackgroundColor: BRAND_COLORS.current,
-                              fill: true,
-                              tension: 0.3,
-                            },
-                            {
-                              label: 'Prior Year',
-                              data: filteredMonths.map(
-                                (m) => monthlyTotals[m]?.prevTotalSales || 0
-                              ),
-                              borderColor: BRAND_COLORS.previous,
-                              backgroundColor: 'transparent',
-                              borderWidth: 2,
-                              borderDash: [8, 4],
-                              pointRadius: 5,
-                              pointBackgroundColor: BRAND_COLORS.previous,
-                              pointStyle: 'circle',
-                              fill: false,
-                              tension: 0.3,
-                            },
-                          ],
-                        }}
-                        options={{
-                          responsive: true,
-                          plugins: {
-                            legend: {
-                              position: 'top',
-                            },
-                            tooltip: {
-                              callbacks: {
-                                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
-                              },
-                            },
-                          },
-                          scales: {
-                            y: {
-                              beginAtZero: true,
-                              ticks: {
-                                callback: (value) => formatCurrency(value),
-                              },
-                            },
-                          },
-                        }}
-                      />
-                    ) : (
-                      (() => {
-                        // Filter daily data to days within the selected month range
-                        const filteredDays = Object.keys(dailyData)
-                          .filter((day) => {
-                            const dayMonth = day.substring(0, 7); // YYYY-MM
-                            return filteredMonths.includes(dayMonth);
-                          })
-                          .sort();
-                        // Format labels as MMM DD (e.g., Jan 15)
-                        const dayLabels = filteredDays.map((d) => {
-                          const date = new Date(d + 'T00:00:00');
-                          return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-                        });
+                    {(() => {
+                      const hasDailyData = Object.keys(dailyData).length > 0;
+
+                      if (chartView === 'month') {
                         return (
                           <Line
                             data={{
-                              labels: dayLabels,
+                              labels: filteredMonths,
                               datasets: [
                                 {
                                   label: 'Current Year',
-                                  data: filteredDays.map((d) => dailyData[d]?.totalSales || 0),
+                                  data: filteredMonths.map((m) => monthlyTotals[m]?.totalSales || 0),
                                   borderColor: BRAND_COLORS.current,
-                                  backgroundColor: `${BRAND_COLORS.current}10`,
-                                  borderWidth: 2,
-                                  pointRadius: filteredDays.length > 60 ? 0 : 3,
-                                  pointHoverRadius: 5,
+                                  backgroundColor: `${BRAND_COLORS.current}20`,
+                                  borderWidth: 3,
+                                  pointRadius: 6,
+                                  pointBackgroundColor: BRAND_COLORS.current,
                                   fill: true,
                                   tension: 0.3,
                                 },
                                 {
                                   label: 'Prior Year',
-                                  data: filteredDays.map((d) => dailyData[d]?.prevTotalSales || 0),
+                                  data: filteredMonths.map((m) => monthlyTotals[m]?.prevTotalSales || 0),
                                   borderColor: BRAND_COLORS.previous,
                                   backgroundColor: 'transparent',
-                                  borderWidth: 1.5,
-                                  borderDash: [6, 3],
-                                  pointRadius: filteredDays.length > 60 ? 0 : 2,
-                                  pointHoverRadius: 4,
+                                  borderWidth: 2,
+                                  borderDash: [8, 4],
+                                  pointRadius: 5,
+                                  pointBackgroundColor: BRAND_COLORS.previous,
+                                  pointStyle: 'circle',
                                   fill: false,
                                   tension: 0.3,
                                 },
@@ -823,38 +750,175 @@ export default function VendorDashboard() {
                             options={{
                               responsive: true,
                               plugins: {
-                                legend: {
-                                  position: 'top',
-                                },
+                                legend: { position: 'top' },
                                 tooltip: {
                                   callbacks: {
-                                    title: (items) => filteredDays[items[0].dataIndex] || '',
                                     label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
                                   },
                                 },
                               },
                               scales: {
-                                x: {
-                                  ticks: {
-                                    maxTicksLimit: 15,
-                                    maxRotation: 45,
-                                  },
-                                },
                                 y: {
                                   beginAtZero: true,
-                                  ticks: {
-                                    callback: (value) => formatCurrency(value),
-                                  },
+                                  ticks: { callback: (value) => formatCurrency(value) },
                                 },
                               },
                             }}
                           />
                         );
-                      })()
-                    )}
-                    {chartView === 'day' && Object.keys(dailyData).length === 0 && (
+                      }
+
+                      // Filter daily data to days within the selected month range
+                      const filteredDays = Object.keys(dailyData)
+                        .filter((day) => filteredMonths.includes(day.substring(0, 7)))
+                        .sort();
+
+                      if (chartView === 'week') {
+                        // Aggregate daily data into ISO weeks
+                        const weekMap = {};
+                        filteredDays.forEach((d) => {
+                          const date = new Date(d + 'T00:00:00');
+                          // Get ISO week start (Monday)
+                          const dayOfWeek = date.getDay();
+                          const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                          const weekStart = new Date(date);
+                          weekStart.setDate(diff);
+                          const weekKey = weekStart.toISOString().split('T')[0];
+
+                          if (!weekMap[weekKey]) {
+                            weekMap[weekKey] = { totalSales: 0, prevTotalSales: 0 };
+                          }
+                          weekMap[weekKey].totalSales += dailyData[d]?.totalSales || 0;
+                          weekMap[weekKey].prevTotalSales += dailyData[d]?.prevTotalSales || 0;
+                        });
+
+                        const weekKeys = Object.keys(weekMap).sort();
+                        const weekLabels = weekKeys.map((wk) => {
+                          const date = new Date(wk + 'T00:00:00');
+                          return `Wk ${date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}`;
+                        });
+
+                        return (
+                          <Line
+                            data={{
+                              labels: weekLabels,
+                              datasets: [
+                                {
+                                  label: 'Current Year',
+                                  data: weekKeys.map((wk) => weekMap[wk].totalSales),
+                                  borderColor: BRAND_COLORS.current,
+                                  backgroundColor: `${BRAND_COLORS.current}15`,
+                                  borderWidth: 2.5,
+                                  pointRadius: weekKeys.length > 30 ? 0 : 4,
+                                  pointHoverRadius: 5,
+                                  pointBackgroundColor: BRAND_COLORS.current,
+                                  fill: true,
+                                  tension: 0.3,
+                                },
+                                {
+                                  label: 'Prior Year',
+                                  data: weekKeys.map((wk) => weekMap[wk].prevTotalSales),
+                                  borderColor: BRAND_COLORS.previous,
+                                  backgroundColor: 'transparent',
+                                  borderWidth: 1.5,
+                                  borderDash: [8, 4],
+                                  pointRadius: weekKeys.length > 30 ? 0 : 3,
+                                  pointHoverRadius: 4,
+                                  pointBackgroundColor: BRAND_COLORS.previous,
+                                  fill: false,
+                                  tension: 0.3,
+                                },
+                              ],
+                            }}
+                            options={{
+                              responsive: true,
+                              plugins: {
+                                legend: { position: 'top' },
+                                tooltip: {
+                                  callbacks: {
+                                    title: (items) => {
+                                      const wk = weekKeys[items[0].dataIndex];
+                                      const end = new Date(wk + 'T00:00:00');
+                                      end.setDate(end.getDate() + 6);
+                                      return `${wk} to ${end.toISOString().split('T')[0]}`;
+                                    },
+                                    label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                                  },
+                                },
+                              },
+                              scales: {
+                                x: { ticks: { maxTicksLimit: 20, maxRotation: 45 } },
+                                y: {
+                                  beginAtZero: true,
+                                  ticks: { callback: (value) => formatCurrency(value) },
+                                },
+                              },
+                            }}
+                          />
+                        );
+                      }
+
+                      // Day view
+                      const dayLabels = filteredDays.map((d) => {
+                        const date = new Date(d + 'T00:00:00');
+                        return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+                      });
+
+                      return (
+                        <Line
+                          data={{
+                            labels: dayLabels,
+                            datasets: [
+                              {
+                                label: 'Current Year',
+                                data: filteredDays.map((d) => dailyData[d]?.totalSales || 0),
+                                borderColor: BRAND_COLORS.current,
+                                backgroundColor: `${BRAND_COLORS.current}10`,
+                                borderWidth: 2,
+                                pointRadius: filteredDays.length > 60 ? 0 : 3,
+                                pointHoverRadius: 5,
+                                fill: true,
+                                tension: 0.3,
+                              },
+                              {
+                                label: 'Prior Year',
+                                data: filteredDays.map((d) => dailyData[d]?.prevTotalSales || 0),
+                                borderColor: BRAND_COLORS.previous,
+                                backgroundColor: 'transparent',
+                                borderWidth: 1.5,
+                                borderDash: [6, 3],
+                                pointRadius: filteredDays.length > 60 ? 0 : 2,
+                                pointHoverRadius: 4,
+                                fill: false,
+                                tension: 0.3,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            plugins: {
+                              legend: { position: 'top' },
+                              tooltip: {
+                                callbacks: {
+                                  title: (items) => filteredDays[items[0].dataIndex] || '',
+                                  label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                                },
+                              },
+                            },
+                            scales: {
+                              x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
+                              y: {
+                                beginAtZero: true,
+                                ticks: { callback: (value) => formatCurrency(value) },
+                              },
+                            },
+                          }}
+                        />
+                      );
+                    })()}
+                    {(chartView === 'day' || chartView === 'week') && Object.keys(dailyData).length === 0 && (
                       <p className="text-sm text-slate-500 mt-2 text-center">
-                        Daily data not available. Re-upload the CSV to enable daily view.
+                        Daily data not available. Re-upload the CSV to enable weekly and daily views.
                       </p>
                     )}
                   </div>
