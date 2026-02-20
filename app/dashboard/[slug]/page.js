@@ -122,7 +122,7 @@ const KPICard = ({ title, value, previousValue, isPercentage = false, isCurrency
     changePercent = '+∞';
   }
 
-  const displayValue = isCurrency ? formatCurrency(value) : value.toLocaleString();
+  const displayValue = isCurrency ? formatCurrency(value) : isPercentage ? `${value.toLocaleString()}%` : value.toLocaleString();
   const arrow =
     changePercent === 'N/A'
       ? '→'
@@ -141,7 +141,7 @@ const KPICard = ({ title, value, previousValue, isPercentage = false, isCurrency
       </div>
       {previousValue !== undefined && (
         <div className="text-xs text-slate-500 mt-2">
-          Previous: {isCurrency ? formatCurrency(previousValue) : previousValue.toLocaleString()}
+          Previous: {isCurrency ? formatCurrency(previousValue) : isPercentage ? `${previousValue.toLocaleString()}%` : previousValue.toLocaleString()}
         </div>
       )}
     </div>
