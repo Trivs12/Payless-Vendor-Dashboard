@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getVendorBySlug } from '@/lib/supabase';
+import { getVendorBySlug, getAppSetting } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
     const { mode, slug, password } = await request.json();
 
     if (mode === 'admin') {
-      const adminPassword = process.env.ADMIN_PASSWORD;
+      // Check app_settings first (changeable from admin portal), fall back to env var
+      const storedPassword = await getAppSetting('admin_password');
+      const adminPassword = storedPassword || process.env.ADMIN_PASSWORD;
       if (!adminPassword) {
         return NextResponse.json(
           { error: 'Admin password not configured' },

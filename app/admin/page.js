@@ -74,6 +74,11 @@ export default function AdminPage() {
   const [companyLogo, setCompanyLogo] = useState(null);
   const [companyLogoSaving, setCompanyLogoSaving] = useState(false);
 
+  // Admin password state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
   // SKU title mapping state
   const [titleMappings, setTitleMappings] = useState([]);
   const [editingMappings, setEditingMappings] = useState([]);
@@ -149,6 +154,30 @@ export default function AdminPage() {
       setError('Failed to save company logo');
     } finally {
       setCompanyLogoSaving(false);
+    }
+  };
+
+  const handleChangeAdminPassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword) {
+      setError('Please enter a new password');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    try {
+      setPasswordSaving(true);
+      setError(null);
+      await saveAppSetting('admin_password', newPassword);
+      setSuccess('Admin password updated successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError('Failed to update admin password');
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -656,6 +685,41 @@ export default function AdminPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Admin Password Section */}
+        <div className="card mb-6">
+          <h2 className="text-xl font-bold mb-3">Admin Password</h2>
+          <p className="text-sm text-gray-500 mb-3">Change your admin login password.</p>
+          <form onSubmit={handleChangeAdminPassword} className="flex items-end gap-3">
+            <div>
+              <label className="label">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="input-field"
+                placeholder="Enter new password"
+              />
+            </div>
+            <div>
+              <label className="label">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="input-field"
+                placeholder="Confirm new password"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={passwordSaving}
+              className="btn-primary"
+            >
+              {passwordSaving ? 'Saving...' : 'Update Password'}
+            </button>
+          </form>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
