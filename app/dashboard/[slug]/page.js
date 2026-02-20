@@ -572,14 +572,26 @@ export default function VendorDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div ref={dashboardRef} className="p-8">
         <div className="max-w-7xl mx-auto">
+          {/* Prepared by bar */}
+          {companyLogo && (
+            <div className="flex justify-end items-center gap-2 mb-3">
+              <span className="text-sm text-slate-500 font-medium">Prepared by:</span>
+              <img
+                src={companyLogo}
+                alt="Company logo"
+                className="h-8 object-contain"
+              />
+            </div>
+          )}
+
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
-                {companyLogo && (
+                {vendor.logo_url && (
                   <img
-                    src={companyLogo}
-                    alt="Company logo"
+                    src={vendor.logo_url}
+                    alt={`${vendor.name} logo`}
                     className="h-14 object-contain"
                   />
                 )}
@@ -592,17 +604,8 @@ export default function VendorDashboard() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold text-sm">
-                  {filteredMonths[0]} to {filteredMonths[filteredMonths.length - 1]}
-                </div>
-                {vendor.logo_url && (
-                  <img
-                    src={vendor.logo_url}
-                    alt={`${vendor.name} logo`}
-                    className="h-14 object-contain"
-                  />
-                )}
+              <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold text-sm">
+                {filteredMonths[0]} to {filteredMonths[filteredMonths.length - 1]}
               </div>
             </div>
 
