@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #0070c9;
+  --brand-dark: #064b86;
+  --brand-light: #e0effe;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-150 shadow-sm;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-5 rounded-lg border border-gray-300 transition-colors duration-150;
+  }
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  }
+  .kpi-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-5;
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow;
+  }
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
+  }
+  .tab-active {
+    @apply border-b-2 border-brand-600 text-brand-700 font-semibold;
+  }
+  .tab-inactive {
+    @apply border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium;
+  }
+  .growth-positive {
+    @apply text-emerald-600 font-semibold;
+  }
+  .growth-negative {
+    @apply text-red-600 font-semibold;
+  }
+  .growth-neutral {
+    @apply text-gray-500 font-medium;
+  }
+  .insight-box {
+    @apply bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-xl p-5 text-gray-700 leading-relaxed;
+  }
+}
+
+/* PDF export styling */
+.pdf-export-container {
+  background: white;
+  padding: 2rem;
+}
+
+/* Print styles */
+@media print {
+  .no-print { display: none !important; }
+  .card { box-shadow: none; border: 1px solid #e5e7eb; }
+}
+
+/* Chart container */
+.chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+}

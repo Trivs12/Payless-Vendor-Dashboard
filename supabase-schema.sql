@@ -1,0 +1,84 @@
+-- Vendor Campaign Dashboard - Supabase Schema
+-- Run this SQL in your Supabase SQL editor after creating a new project
+
+-- Enable UUID generation
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Vendors table
+CREATE TABLE vendors (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  logo_url TEXT,
+  brand_color TEXT DEFAULT '#0070c9',
+  monthly_budget NUMERIC(10,2),
+  show_budget BOOLEAN DEFAULT false,
+  campaign_start DATE,
+  campaign_end DATE,
+  product_name TEXT,
+  sku_map JSONB DEFAULT '{}',
+  category_name TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Monthly product data (aggregated from CSV)
+CREATE TABLE monthly_product_data (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  sku TEXT NOT NULL,
+  sku_label TEXT,
+  total_sales NUMERIC(12,2) DEFAULT 0,
+  net_items INTEGER DEFAULT 0,
+  new_customers INTEGER DEFAULT 0,
+  returning_customers INTEGER DEFAULT 0,
+  prev_total_sales NUMERIC(12,2) DEFAULT 0,
+  prev_net_items INTEGER DEFAULT 0,
+  prev_new_customers INTEGER DEFAULT 0,
+  prev_returning_customers INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(vendor_id, month, sku)
+);
+
+-- Monthly category data (for share calculations)
+CREATE TABLE monthly_category_data (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  total_sales NUMERIC(12,2) DEFAULT 0,
+  prev_total_sales NUMERIC(12,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(vendor_id, month)
+);
+
+-- Upload history
+CREATE TABLE upload_history (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  file_type TEXT NOT NULL CHECK (file_type IN ('product', 'category')),
+  file_name TEXT,
+  row_count INTEGER,
+  date_range TEXT,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_product_data_vendor ON monthly_product_data(vendor_id);
+CREATE INDEX idx_product_data_month ON monthly_product_data(month);
+CREATE INDEX idx_category_data_vendor ON monthly_category_data(vendor_id);
+CREATE INDEX idx_category_data_month ON monthly_category_data(month);
+
+-- Row Level Security (optional - enable if needed)
+ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_product_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_category_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upload_history ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Allow all access via service role (API routes use anon key with these policies)
+CREATE POLICY "Allow all for anon" ON vendors FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON monthly_product_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON monthly_category_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON upload_history FOR ALL USING (true) WITH CHECK (true);
