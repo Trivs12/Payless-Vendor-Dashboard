@@ -14,6 +14,9 @@ import {
   getUploadHistory,
   getAppSetting,
   saveAppSetting,
+  getSkuTitleMap,
+  saveSkuTitleMap,
+  deleteSkuTitleMapping,
 } from '@/lib/supabase';
 import { parseProductCSV, parseCategoryCSV } from '@/lib/dataProcessing';
 
@@ -53,6 +56,11 @@ export default function AdminPage() {
   // Company logo state
   const [companyLogo, setCompanyLogo] = useState(null);
   const [companyLogoSaving, setCompanyLogoSaving] = useState(false);
+
+  // SKU title mapping state
+  const [titleMappings, setTitleMappings] = useState([]);
+  const [editingMappings, setEditingMappings] = useState([]);
+  const [newMapping, setNewMapping] = useState({ sku: '', product_title: '', variant_title: '' });
 
   // CSV upload states
   const [selectedTab, setSelectedTab] = useState('settings'); // settings | upload | history
@@ -177,6 +185,18 @@ export default function AdminPage() {
     }));
   };
 
+  const loadTitleMappings = async (vendorId) => {
+    try {
+      const mappings = await getSkuTitleMap(vendorId);
+      setTitleMappings(mappings);
+      setEditingMappings(mappings.map((m) => ({ ...m })));
+    } catch (err) {
+      console.error('Failed to load title mappings:', err);
+      setTitleMappings([]);
+      setEditingMappings([]);
+    }
+  };
+
   // Handle vendor selection
   const handleSelectVendor = (vendor) => {
     setSelectedVendor(vendor);
@@ -186,6 +206,7 @@ export default function AdminPage() {
     setCategoryCSVFile(null);
     setCSVPreview(null);
     loadUploadHistory(vendor.id);
+    loadTitleMappings(vendor.id);
   };
 
   // Handle create/edit form submission
@@ -582,6 +603,16 @@ export default function AdminPage() {
                   >
                     Upload History
                   </button>
+                  <button
+                    onClick={() => setSelectedTab('titles')}
+                    className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+                      selectedTab === 'titles'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Title Mapping
+                  </button>
                 </div>
 
                 {/* Settings Tab */}
@@ -889,6 +920,154 @@ export default function AdminPage() {
                         </table>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Title Mapping Tab */}
+                {selectedTab === 'titles' && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Map each SKU to its current product and variant title. These titles override whatever was in the CSV at time of sale.
+                    </p>
+
+                    {/* Existing mappings */}
+                    {editingMappings.length > 0 && (
+                      <div className="overflow-x-auto mb-6">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-gray-50">
+                              <th className="px-3 py-2 text-left font-semibold">SKU</th>
+                              <th className="px-3 py-2 text-left font-semibold">Product Title</th>
+                              <th className="px-3 py-2 text-left font-semibold">Variant Title</th>
+                              <th className="px-3 py-2 text-left font-semibold w-20"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {editingMappings.map((mapping, idx) => (
+                              <tr key={mapping.sku} className="border-b">
+                                <td className="px-3 py-2 font-mono text-xs text-gray-700">{mapping.sku}</td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="text"
+                                    value={mapping.product_title}
+                                    onChange={(e) => {
+                                      const updated = [...editingMappings];
+                                      updated[idx] = { ...updated[idx], product_title: e.target.value };
+                                      setEditingMappings(updated);
+                                    }}
+                                    className="input-field text-sm"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="text"
+                                    value={mapping.variant_title || ''}
+                                    onChange={(e) => {
+                                      const updated = [...editingMappings];
+                                      updated[idx] = { ...updated[idx], variant_title: e.target.value };
+                                      setEditingMappings(updated);
+                                    }}
+                                    className="input-field text-sm"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await deleteSkuTitleMapping(selectedVendor.id, mapping.sku);
+                                        setSuccess(`Removed mapping for ${mapping.sku}`);
+                                        await loadTitleMappings(selectedVendor.id);
+                                      } catch (err) {
+                                        setError('Failed to remove mapping');
+                                      }
+                                    }}
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                  >
+                                    Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <button
+                          onClick={async () => {
+                            try {
+                              setLoading(true);
+                              await saveSkuTitleMap(selectedVendor.id, editingMappings);
+                              setSuccess('Title mappings saved');
+                              await loadTitleMappings(selectedVendor.id);
+                            } catch (err) {
+                              setError('Failed to save mappings');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          className="btn-primary mt-3"
+                        >
+                          {loading ? 'Saving...' : 'Save All Changes'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Add new mapping */}
+                    <h3 className="text-md font-semibold mb-2 mt-4">Add New Mapping</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                      <div>
+                        <label className="label">SKU *</label>
+                        <input
+                          type="text"
+                          value={newMapping.sku}
+                          onChange={(e) => setNewMapping((prev) => ({ ...prev, sku: e.target.value }))}
+                          className="input-field text-sm"
+                          placeholder="e.g., COL 28916"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Product Title *</label>
+                        <input
+                          type="text"
+                          value={newMapping.product_title}
+                          onChange={(e) => setNewMapping((prev) => ({ ...prev, product_title: e.target.value }))}
+                          className="input-field text-sm"
+                          placeholder="Current product name"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Variant Title</label>
+                        <input
+                          type="text"
+                          value={newMapping.variant_title}
+                          onChange={(e) => setNewMapping((prev) => ({ ...prev, variant_title: e.target.value }))}
+                          className="input-field text-sm"
+                          placeholder="e.g., 16 FR - Box of 30"
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!newMapping.sku || !newMapping.product_title) {
+                            setError('SKU and Product Title are required');
+                            return;
+                          }
+                          try {
+                            setLoading(true);
+                            await saveSkuTitleMap(selectedVendor.id, [newMapping]);
+                            setSuccess(`Added mapping for ${newMapping.sku}`);
+                            setNewMapping({ sku: '', product_title: '', variant_title: '' });
+                            await loadTitleMappings(selectedVendor.id);
+                          } catch (err) {
+                            setError('Failed to add mapping');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                        className="btn-primary text-sm"
+                      >
+                        Add
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -21,6 +21,7 @@ import {
   getCategoryData,
   getDailyProductData,
   getAppSetting,
+  getSkuTitleMap,
 } from '@/lib/supabase';
 import {
   calculateYoY,
@@ -278,10 +279,17 @@ export default function VendorDashboard() {
         const logo = await getAppSetting('company_logo');
         if (logo) setCompanyLogo(logo);
 
-        // Load product, category, and daily data
+        // Load product, category, daily data, and title mappings
         const productRows = await getProductData(vendorId);
         const categoryRows = await getCategoryData(vendorId);
         const dailyRows = await getDailyProductData(vendorId);
+        const titleMappings = await getSkuTitleMap(vendorId);
+
+        // Build SKU -> title lookup from mappings
+        const titleMap = {};
+        (titleMappings || []).forEach((m) => {
+          titleMap[m.sku] = { productTitle: m.product_title, variantTitle: m.variant_title || '' };
+        });
 
         if (!productRows || productRows.length === 0) {
           setMonthlySkuData({});
@@ -332,6 +340,17 @@ export default function VendorDashboard() {
           const prevNewCustomers = parseInt(row.prev_new_customers) || 0;
           const prevReturningCustomers = parseInt(row.prev_returning_customers) || 0;
 
+          // Use title map override if available, otherwise fall back to DB values
+          const mapped = titleMap[sku];
+          const productTitle = mapped ? mapped.productTitle : (row.product_title || '');
+          const variantTitle = mapped ? mapped.variantTitle : (row.variant_title || '');
+          let skuLabel = row.sku_label || sku;
+          if (productTitle) {
+            skuLabel = variantTitle && variantTitle.toLowerCase() !== 'default title'
+              ? `${productTitle} - ${variantTitle}`
+              : productTitle;
+          }
+
           restructuredSkuData[month][sku] = {
             totalSales,
             netItems,
@@ -341,9 +360,9 @@ export default function VendorDashboard() {
             prevNetItems,
             prevNewCustomers,
             prevReturningCustomers,
-            skuLabel: row.sku_label || sku,
-            productTitle: row.product_title || '',
-            variantTitle: row.variant_title || '',
+            skuLabel,
+            productTitle,
+            variantTitle,
           };
 
           restructuredTotals[month].totalSales += totalSales;

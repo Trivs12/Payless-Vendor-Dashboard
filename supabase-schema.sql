@@ -73,6 +73,17 @@ CREATE TABLE daily_product_data (
   UNIQUE(vendor_id, day)
 );
 
+-- SKU title mapping (maps SKU to current product/variant titles)
+CREATE TABLE sku_title_map (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  sku TEXT NOT NULL,
+  product_title TEXT NOT NULL,
+  variant_title TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(vendor_id, sku)
+);
+
 -- App settings (company logo, name, etc.)
 CREATE TABLE app_settings (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -107,6 +118,7 @@ ALTER TABLE monthly_category_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sku_title_map ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow all access via service role (API routes use anon key with these policies)
 CREATE POLICY "Allow all for anon" ON vendors FOR ALL USING (true) WITH CHECK (true);
@@ -115,3 +127,4 @@ CREATE POLICY "Allow all for anon" ON monthly_category_data FOR ALL USING (true)
 CREATE POLICY "Allow all for anon" ON daily_product_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON upload_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON app_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON sku_title_map FOR ALL USING (true) WITH CHECK (true);
