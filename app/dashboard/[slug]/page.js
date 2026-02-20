@@ -633,14 +633,15 @@ export default function VendorDashboard() {
       <nav className="bg-white shadow sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {vendor.logo_url && (
+            {vendor.logo_url ? (
               <img
                 src={vendor.logo_url}
                 alt={vendor.name}
                 className="h-10 object-contain"
               />
+            ) : (
+              <span className="font-semibold text-slate-900 text-lg">{vendor.name}</span>
             )}
-            <span className="font-semibold text-slate-900 text-lg">{vendor.name}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -1195,9 +1196,14 @@ export default function VendorDashboard() {
                       'Net Items',
                       'New Customers',
                       'Returning Customers',
+                      'Category Share %',
                     ]}
                     rows={filteredMonths.map((month) => {
                       const data = monthlyTotals[month];
+                      const categorySales = categoryMonthly[month]?.totalSales || 0;
+                      const share = categorySales > 0
+                        ? ((data.totalSales / categorySales) * 100).toFixed(1)
+                        : '0.0';
                       return {
                         'Month': month,
                         'Total Sales': formatCurrency(data.totalSales),
@@ -1205,6 +1211,7 @@ export default function VendorDashboard() {
                         'New Customers': data.newCustomers.toLocaleString(),
                         'Returning Customers':
                           data.returningCustomers.toLocaleString(),
+                        'Category Share %': `${share}%`,
                       };
                     })}
                   />
@@ -1327,7 +1334,6 @@ export default function VendorDashboard() {
                     columns={[
                       'Month',
                       'Product Sales',
-                      'Category Sales',
                       'Share %',
                       'Prior Year Share %',
                     ]}
@@ -1346,7 +1352,6 @@ export default function VendorDashboard() {
                       return {
                         'Month': month,
                         'Product Sales': formatCurrency(productSales),
-                        'Category Sales': formatCurrency(categorySales),
                         'Share %': `${share}%`,
                         'Prior Year Share %': `${prevShare}%`,
                       };
@@ -1430,10 +1435,14 @@ export default function VendorDashboard() {
                           },
                           y: {
                             beginAtZero: true,
-                            max: 100,
+                            suggestedMax: 10,
                             grid: { color: '#f1f5f9' },
                             border: { display: false },
-                            ticks: { color: '#94a3b8', font: { size: 12 } },
+                            ticks: {
+                              color: '#94a3b8',
+                              font: { size: 12 },
+                              callback: (value) => `${value}%`,
+                            },
                           },
                         },
                       }}
