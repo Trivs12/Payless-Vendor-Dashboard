@@ -668,12 +668,12 @@ export default function VendorDashboard() {
                 <div>
                   <InsightBox insights={yoyInsights} />
 
-                  {/* YoY Sales Chart */}
+                  {/* YoY Sales Line Chart */}
                   <div className="card mb-6">
                     <h3 className="text-lg font-bold text-slate-900 mb-4">
                       Sales Comparison by Month
                     </h3>
-                    <Bar
+                    <Line
                       data={{
                         labels: filteredMonths,
                         datasets: [
@@ -682,14 +682,28 @@ export default function VendorDashboard() {
                             data: filteredMonths.map(
                               (m) => monthlyTotals[m]?.totalSales || 0
                             ),
-                            backgroundColor: BRAND_COLORS.current,
+                            borderColor: BRAND_COLORS.current,
+                            backgroundColor: `${BRAND_COLORS.current}20`,
+                            borderWidth: 3,
+                            pointRadius: 6,
+                            pointBackgroundColor: BRAND_COLORS.current,
+                            fill: true,
+                            tension: 0.3,
                           },
                           {
                             label: 'Prior Year',
                             data: filteredMonths.map(
                               (m) => monthlyTotals[m]?.prevTotalSales || 0
                             ),
-                            backgroundColor: BRAND_COLORS.previous,
+                            borderColor: BRAND_COLORS.previous,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [8, 4],
+                            pointRadius: 5,
+                            pointBackgroundColor: BRAND_COLORS.previous,
+                            pointStyle: 'circle',
+                            fill: false,
+                            tension: 0.3,
                           },
                         ],
                       }}
@@ -699,61 +713,67 @@ export default function VendorDashboard() {
                           legend: {
                             position: 'top',
                           },
+                          tooltip: {
+                            callbacks: {
+                              label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                            },
+                          },
                         },
                         scales: {
                           y: {
                             beginAtZero: true,
+                            ticks: {
+                              callback: (value) => formatCurrency(value),
+                            },
                           },
                         },
                       }}
                     />
                   </div>
 
-                  {/* Sales by SKU Table */}
+                  {/* Sales by SKU - Separate table per month */}
                   <h3 className="text-lg font-bold text-slate-900 mb-4">
                     Sales by SKU
                   </h3>
-                  <DataTable
-                    columns={['Month', 'SKU Label', 'Current Sales', 'Prior Year Sales', 'Change %']}
-                    rows={filteredMonths.flatMap((month) =>
-                      Object.keys(monthlySkuData[month] || {}).map((sku) => {
-                        const data = monthlySkuData[month][sku];
-                        return {
-                          'Month': month,
-                          'SKU Label': data.skuLabel,
-                          'Current Sales': formatCurrency(data.totalSales),
-                          'Prior Year Sales': formatCurrency(data.prevTotalSales),
-                          'Change %': formatPercent(
-                            data.totalSales,
-                            data.prevTotalSales
-                          ),
-                        };
-                      })
-                    )}
-                  />
+                  {filteredMonths.map((month) => (
+                    <div key={`sales-${month}`} className="mb-6">
+                      <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
+                      <DataTable
+                        columns={['SKU', 'Current Sales', 'Prior Year Sales', 'Change %']}
+                        rows={Object.keys(monthlySkuData[month] || {}).map((sku) => {
+                          const data = monthlySkuData[month][sku];
+                          return {
+                            'SKU': data.skuLabel,
+                            'Current Sales': formatCurrency(data.totalSales),
+                            'Prior Year Sales': formatCurrency(data.prevTotalSales),
+                            'Change %': formatPercent(data.totalSales, data.prevTotalSales),
+                          };
+                        })}
+                      />
+                    </div>
+                  ))}
 
-                  {/* Quantity by SKU Table */}
-                  <h3 className="text-lg font-bold text-slate-900 mb-4 mt-6">
+                  {/* Quantity by SKU - Separate table per month */}
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 mt-8">
                     Units Sold by SKU
                   </h3>
-                  <DataTable
-                    columns={['Month', 'SKU Label', 'Current Units', 'Prior Year Units', 'Change %']}
-                    rows={filteredMonths.flatMap((month) =>
-                      Object.keys(monthlySkuData[month] || {}).map((sku) => {
-                        const data = monthlySkuData[month][sku];
-                        return {
-                          'Month': month,
-                          'SKU Label': data.skuLabel,
-                          'Current Units': data.netItems.toLocaleString(),
-                          'Prior Year Units': data.prevNetItems.toLocaleString(),
-                          'Change %': formatPercent(
-                            data.netItems,
-                            data.prevNetItems
-                          ),
-                        };
-                      })
-                    )}
-                  />
+                  {filteredMonths.map((month) => (
+                    <div key={`units-${month}`} className="mb-6">
+                      <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
+                      <DataTable
+                        columns={['SKU', 'Current Units', 'Prior Year Units', 'Change %']}
+                        rows={Object.keys(monthlySkuData[month] || {}).map((sku) => {
+                          const data = monthlySkuData[month][sku];
+                          return {
+                            'SKU': data.skuLabel,
+                            'Current Units': data.netItems.toLocaleString(),
+                            'Prior Year Units': (data.prevNetItems || 0).toLocaleString(),
+                            'Change %': formatPercent(data.netItems, data.prevNetItems || 0),
+                          };
+                        })}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
 
