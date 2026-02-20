@@ -160,13 +160,25 @@ export default function AdminPage() {
 
       setLoading(true);
 
+      // Sanitize data — convert empty strings to null for optional fields
+      const sanitized = {
+        ...formData,
+        monthly_budget: formData.monthly_budget === '' ? null : parseFloat(formData.monthly_budget),
+        campaign_start: formData.campaign_start || null,
+        campaign_end: formData.campaign_end || null,
+        product_name: formData.product_name || null,
+        category_name: formData.category_name || null,
+        notes: formData.notes || null,
+        sku_map: formData.sku_map || '{}',
+      };
+
       if (selectedVendor?.id) {
         // Update existing vendor
-        await updateVendor(selectedVendor.id, formData);
+        await updateVendor(selectedVendor.id, sanitized);
         setSuccess('Vendor updated successfully');
       } else {
         // Create new vendor
-        const newVendor = await createVendor(formData);
+        const newVendor = await createVendor(sanitized);
         setSuccess('Vendor created successfully');
         setFormData({
           name: '',
