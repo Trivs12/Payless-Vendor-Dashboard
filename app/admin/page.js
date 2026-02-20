@@ -237,12 +237,13 @@ export default function AdminPage() {
         const productText = await productCSVFile.text();
         const productData = parseProductCSV(productText);
 
-        // Save product data
-        await saveProductData(selectedVendor.id, productData.monthlyData);
+        // Save product data - parseProductCSV returns { monthlySkuData, monthlyTotals, months, targetSkus }
+        await saveProductData(selectedVendor.id, productData.monthlySkuData);
 
         // Save upload history
-        if (productData.monthlyData && productData.monthlyData.length > 0) {
-          const dateRange = productData.dateRange || 'Unknown';
+        const months = productData.months || [];
+        if (months.length > 0) {
+          const dateRange = `${months[0]} to ${months[months.length - 1]}`;
           await saveUploadHistory(
             selectedVendor.id,
             'product',
@@ -258,17 +259,19 @@ export default function AdminPage() {
         const categoryText = await categoryCSVFile.text();
         const categoryData = parseCategoryCSV(categoryText);
 
-        // Save category data
+        // Save category data - parseCategoryCSV returns { [month]: { totalSales, prevTotalSales } }
         await saveCategoryData(selectedVendor.id, categoryData);
 
         // Save upload history
-        if (categoryData && categoryData.length > 0) {
+        const categoryMonths = Object.keys(categoryData);
+        if (categoryMonths.length > 0) {
+          const dateRange = `${categoryMonths.sort()[0]} to ${categoryMonths.sort().pop()}`;
           await saveUploadHistory(
             selectedVendor.id,
             'category',
             categoryCSVFile.name,
-            categoryData.length,
-            new Date().toISOString().split('T')[0]
+            categoryMonths.length,
+            dateRange
           );
         }
       }
@@ -304,11 +307,13 @@ export default function AdminPage() {
         const csvText = e.target?.result;
         if (isProduct && productCSVFile) {
           const parsed = parseProductCSV(csvText);
+          const months = parsed.months || [];
           setCSVPreview({
             type: 'product',
-            months: parsed.monthlyData?.length || 0,
+            months: months.length,
+            skus: (parsed.targetSkus || []).length,
             rows: csvText.split('\n').length - 1,
-            dateRange: parsed.dateRange || 'N/A',
+            dateRange: months.length > 0 ? `${months[0]} to ${months[months.length - 1]}` : 'N/A',
           });
         } else if (!isProduct && categoryCSVFile) {
           const parsed = parseCategoryCSV(csvText);
