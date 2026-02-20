@@ -30,6 +30,7 @@ CREATE TABLE reports (
   product_name TEXT,
   category_name TEXT,
   is_default BOOLEAN DEFAULT false,
+  custom_insights JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(vendor_id, name)

@@ -85,6 +85,16 @@ export default function AdminPage() {
   const [titleMappings, setTitleMappings] = useState([]);
   const [editingMappings, setEditingMappings] = useState([]);
 
+  // Custom insights state
+  const [insightsEditing, setInsightsEditing] = useState({
+    executive: { hidden: false, text: '' },
+    yoy: { hidden: false, text: '' },
+    mom: { hidden: false, text: '' },
+    campaign: { hidden: false, text: '' },
+    category: { hidden: false, text: '' },
+  });
+  const [insightsSaving, setInsightsSaving] = useState(false);
+
   // CSV upload states
   const [selectedTab, setSelectedTab] = useState('settings');
   const [productCSVFile, setProductCSVFile] = useState(null);
@@ -241,6 +251,7 @@ export default function AdminPage() {
       // Auto-select first report (default is first since sorted by is_default desc)
       if (reports && reports.length > 0) {
         setSelectedReport(reports[0]);
+        loadInsights(reports[0]);
       } else {
         setSelectedReport(null);
       }
@@ -317,13 +328,44 @@ export default function AdminPage() {
     }
   };
 
-  // Handle report selection change (for upload/history/titles tabs)
+  // Handle report selection change (for upload/history/titles/insights tabs)
   const handleReportSelect = (reportId) => {
     const report = vendorReports.find((r) => r.id === reportId);
     setSelectedReport(report || null);
     if (report) {
       loadUploadHistory(report.id);
       loadTitleMappings(report.id);
+      loadInsights(report);
+    }
+  };
+
+  const loadInsights = (report) => {
+    const defaults = { hidden: false, text: '' };
+    const ci = report?.custom_insights || {};
+    setInsightsEditing({
+      executive: { ...defaults, ...ci.executive },
+      yoy: { ...defaults, ...ci.yoy },
+      mom: { ...defaults, ...ci.mom },
+      campaign: { ...defaults, ...ci.campaign },
+      category: { ...defaults, ...ci.category },
+    });
+  };
+
+  const handleSaveInsights = async () => {
+    if (!selectedReport) return;
+    try {
+      setInsightsSaving(true);
+      const updated = await updateReport(selectedReport.id, { custom_insights: insightsEditing });
+      // Update report in local state
+      setVendorReports((prev) =>
+        prev.map((r) => (r.id === selectedReport.id ? { ...r, custom_insights: insightsEditing } : r))
+      );
+      setSelectedReport({ ...selectedReport, custom_insights: insightsEditing });
+      setSuccess('Key insights saved');
+    } catch (err) {
+      setError('Failed to save key insights');
+    } finally {
+      setInsightsSaving(false);
     }
   };
 
@@ -860,7 +902,7 @@ export default function AdminPage() {
               <div className="card">
                 {/* Tabs */}
                 <div className="flex space-x-4 mb-6 border-b overflow-x-auto">
-                  {['settings', 'reports', 'upload', 'history', 'titles'].map((tab) => (
+                  {['settings', 'reports', 'upload', 'history', 'titles', 'insights'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setSelectedTab(tab)}
@@ -875,6 +917,7 @@ export default function AdminPage() {
                       {tab === 'upload' && 'Upload Data'}
                       {tab === 'history' && 'Upload History'}
                       {tab === 'titles' && 'Title Mapping'}
+                      {tab === 'insights' && 'Key Insights'}
                     </button>
                   ))}
                 </div>
@@ -1399,6 +1442,84 @@ export default function AdminPage() {
                             />
                           </div>
                         </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Key Insights Tab */}
+                {selectedTab === 'insights' && (
+                  <div>
+                    <ReportSelector />
+                    {selectedReport && (
+                      <>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Customize the Key Insights text for each section of the report. Leave the text empty to use auto-generated insights, or toggle to hide insights entirely.
+                        </p>
+
+                        {[
+                          { key: 'executive', label: 'Executive Summary' },
+                          { key: 'yoy', label: 'Year-over-Year' },
+                          { key: 'mom', label: 'Month-over-Month' },
+                          { key: 'campaign', label: 'Campaign Period' },
+                          { key: 'category', label: 'Category Share' },
+                        ].map(({ key, label }) => (
+                          <div key={key} className="card mb-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-md font-semibold text-gray-900">{label}</h3>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <span className="text-sm text-gray-500">
+                                  {insightsEditing[key]?.hidden ? 'Hidden' : 'Visible'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setInsightsEditing((prev) => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], hidden: !prev[key].hidden },
+                                    }));
+                                  }}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    insightsEditing[key]?.hidden ? 'bg-gray-300' : 'bg-blue-600'
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                      insightsEditing[key]?.hidden ? 'translate-x-1' : 'translate-x-6'
+                                    }`}
+                                  />
+                                </button>
+                              </label>
+                            </div>
+                            {!insightsEditing[key]?.hidden && (
+                              <div>
+                                <textarea
+                                  value={insightsEditing[key]?.text || ''}
+                                  onChange={(e) => {
+                                    setInsightsEditing((prev) => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], text: e.target.value },
+                                    }));
+                                  }}
+                                  placeholder="Leave empty to use auto-generated insights..."
+                                  rows={3}
+                                  className="input-field text-sm"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {insightsEditing[key]?.text?.trim() ? 'Using custom text' : 'Using auto-generated insights'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        <button
+                          onClick={handleSaveInsights}
+                          disabled={insightsSaving}
+                          className="btn-primary"
+                        >
+                          {insightsSaving ? 'Saving...' : 'Save Insights'}
+                        </button>
                       </>
                     )}
                   </div>
