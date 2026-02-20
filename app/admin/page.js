@@ -12,6 +12,8 @@ import {
   saveCategoryData,
   saveUploadHistory,
   getUploadHistory,
+  getAppSetting,
+  saveAppSetting,
 } from '@/lib/supabase';
 import { parseProductCSV, parseCategoryCSV } from '@/lib/dataProcessing';
 
@@ -48,6 +50,10 @@ export default function AdminPage() {
     notes: '',
   });
 
+  // Company logo state
+  const [companyLogo, setCompanyLogo] = useState(null);
+  const [companyLogoSaving, setCompanyLogoSaving] = useState(false);
+
   // CSV upload states
   const [selectedTab, setSelectedTab] = useState('settings'); // settings | upload | history
   const [productCSVFile, setProductCSVFile] = useState(null);
@@ -81,12 +87,57 @@ export default function AdminPage() {
     checkAuth();
   }, [router]);
 
-  // Load vendors on mount
+  // Load vendors and company logo on mount
   useEffect(() => {
     if (isAuthorized) {
       loadVendors();
+      loadCompanyLogo();
     }
   }, [isAuthorized]);
+
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const loadCompanyLogo = async () => {
+    try {
+      const logo = await getAppSetting('company_logo');
+      if (logo) setCompanyLogo(logo);
+    } catch (err) {
+      console.error('Failed to load company logo:', err);
+    }
+  };
+
+  const handleCompanyLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setCompanyLogoSaving(true);
+      const base64 = await fileToBase64(file);
+      await saveAppSetting('company_logo', base64);
+      setCompanyLogo(base64);
+      setSuccess('Company logo saved');
+    } catch (err) {
+      setError('Failed to save company logo');
+    } finally {
+      setCompanyLogoSaving(false);
+    }
+  };
+
+  const handleVendorLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedVendor) return;
+    try {
+      const base64 = await fileToBase64(file);
+      setFormData((prev) => ({ ...prev, logo_url: base64 }));
+    } catch (err) {
+      setError('Failed to read logo file');
+    }
+  };
 
   const loadVendors = async () => {
     try {
@@ -384,6 +435,47 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Company Logo Section */}
+        <div className="card mb-6">
+          <h2 className="text-xl font-bold mb-3">Company Logo</h2>
+          <p className="text-sm text-gray-500 mb-3">This logo appears at the top of all vendor reports.</p>
+          <div className="flex items-center gap-4">
+            {companyLogo && (
+              <img
+                src={companyLogo}
+                alt="Company logo"
+                className="h-14 object-contain rounded border border-gray-200 p-1"
+              />
+            )}
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCompanyLogoUpload}
+                className="input-field text-sm"
+                disabled={companyLogoSaving}
+              />
+              {companyLogoSaving && <span className="text-xs text-gray-500 mt-1">Saving...</span>}
+            </div>
+            {companyLogo && (
+              <button
+                onClick={async () => {
+                  try {
+                    await saveAppSetting('company_logo', null);
+                    setCompanyLogo(null);
+                    setSuccess('Company logo removed');
+                  } catch (err) {
+                    setError('Failed to remove logo');
+                  }
+                }}
+                className="text-xs text-red-600 hover:text-red-800"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left sidebar: Vendor list */}
           <div className="lg:col-span-1">
@@ -632,6 +724,32 @@ export default function AdminPage() {
                       />
                     </div>
 
+
+                    <div>
+                      <label className="label">Vendor Logo</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleVendorLogoUpload}
+                        className="input-field"
+                      />
+                      {formData.logo_url && (
+                        <div className="mt-2 flex items-center gap-3">
+                          <img
+                            src={formData.logo_url}
+                            alt="Vendor logo"
+                            className="h-12 object-contain rounded border border-gray-200 p-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, logo_url: null }))}
+                            className="text-xs text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     <div>
                       <label className="label">Notes</label>
@@ -941,6 +1059,41 @@ export default function AdminPage() {
                     <span className="text-sm font-medium">Show Budget on Dashboard</span>
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <label className="label">Vendor Logo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const base64 = await fileToBase64(file);
+                      setFormData((prev) => ({ ...prev, logo_url: base64 }));
+                    } catch (err) {
+                      setError('Failed to read logo file');
+                    }
+                  }}
+                  className="input-field"
+                />
+                {formData.logo_url && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <img
+                      src={formData.logo_url}
+                      alt="Vendor logo"
+                      className="h-12 object-contain rounded border border-gray-200 p-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, logo_url: null }))}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

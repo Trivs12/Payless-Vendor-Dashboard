@@ -20,6 +20,7 @@ import {
   getProductData,
   getCategoryData,
   getDailyProductData,
+  getAppSetting,
 } from '@/lib/supabase';
 import {
   calculateYoY,
@@ -242,6 +243,7 @@ export default function VendorDashboard() {
   const [exporting, setExporting] = useState(false);
   const [dailyData, setDailyData] = useState({});
   const [chartView, setChartView] = useState('month'); // 'month', 'week', or 'day'
+  const [companyLogo, setCompanyLogo] = useState(null);
 
   // Auth check and data loading
   useEffect(() => {
@@ -271,6 +273,10 @@ export default function VendorDashboard() {
           return;
         }
         setVendor(vendorData);
+
+        // Load company logo
+        const logo = await getAppSetting('company_logo');
+        if (logo) setCompanyLogo(logo);
 
         // Load product, category, and daily data
         const productRows = await getProductData(vendorId);
@@ -568,19 +574,35 @@ export default function VendorDashboard() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-1">
-                  Prepared by Your Company for {vendor.name}
-                </h1>
-                {vendor.product_name && (
-                  <p className="text-lg text-slate-600">{vendor.product_name}</p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                {companyLogo && (
+                  <img
+                    src={companyLogo}
+                    alt="Company logo"
+                    className="h-14 object-contain"
+                  />
                 )}
+                <div>
+                  <h1 className="text-3xl font-bold text-slate-900 mb-1">
+                    Prepared for {vendor.name}
+                  </h1>
+                  {vendor.product_name && (
+                    <p className="text-lg text-slate-600">{vendor.product_name}</p>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
+              <div className="flex items-center gap-4">
                 <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold text-sm">
                   {filteredMonths[0]} to {filteredMonths[filteredMonths.length - 1]}
                 </div>
+                {vendor.logo_url && (
+                  <img
+                    src={vendor.logo_url}
+                    alt={`${vendor.name} logo`}
+                    className="h-14 object-contain"
+                  />
+                )}
               </div>
             </div>
 

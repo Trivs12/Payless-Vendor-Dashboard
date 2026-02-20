@@ -71,6 +71,14 @@ CREATE TABLE daily_product_data (
   UNIQUE(vendor_id, day)
 );
 
+-- App settings (company logo, name, etc.)
+CREATE TABLE app_settings (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  key TEXT UNIQUE NOT NULL,
+  value TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Upload history
 CREATE TABLE upload_history (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -96,6 +104,7 @@ ALTER TABLE monthly_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_category_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow all access via service role (API routes use anon key with these policies)
 CREATE POLICY "Allow all for anon" ON vendors FOR ALL USING (true) WITH CHECK (true);
@@ -103,3 +112,4 @@ CREATE POLICY "Allow all for anon" ON monthly_product_data FOR ALL USING (true) 
 CREATE POLICY "Allow all for anon" ON monthly_category_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON daily_product_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON upload_history FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON app_settings FOR ALL USING (true) WITH CHECK (true);
