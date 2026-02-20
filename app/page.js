@@ -119,7 +119,7 @@ export default function LoginPage() {
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  placeholder="e.g., coloplast"
+                  placeholder="e.g., payless medical"
                   className="input-field"
                   required
                 />
