@@ -53,8 +53,8 @@ ChartJS.register(
 );
 
 const BRAND_COLORS = {
-  current: '#1a8b6e',
-  previous: '#b0cec5',
+  current: '#17A5EB',
+  previous: '#88C6E6',
 };
 
 // Loading skeleton component
