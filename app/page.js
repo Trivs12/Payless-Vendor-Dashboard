@@ -74,7 +74,7 @@ export default function LoginPage() {
         {/* Logo area */}
         <div className="text-center mb-8">
           {companyLogo ? (
-            <img src={companyLogo} alt="Company Logo" className="h-16 mx-auto mb-4 object-contain" />
+            <img src={companyLogo} alt="Company Logo" className="h-48 mx-auto mb-4 object-contain" />
           ) : (
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 text-white text-2xl font-bold mb-4 shadow-lg">
               CP
