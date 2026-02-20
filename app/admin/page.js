@@ -60,7 +60,7 @@ export default function AdminPage() {
   // SKU title mapping state
   const [titleMappings, setTitleMappings] = useState([]);
   const [editingMappings, setEditingMappings] = useState([]);
-  const [newMapping, setNewMapping] = useState({ sku: '', product_title: '', variant_title: '' });
+  // newMapping state removed — title mapping now uses CSV upload
 
   // CSV upload states
   const [selectedTab, setSelectedTab] = useState('settings'); // settings | upload | history
@@ -1011,62 +1011,61 @@ export default function AdminPage() {
                       </div>
                     )}
 
-                    {/* Add new mapping */}
-                    <h3 className="text-md font-semibold mb-2 mt-4">Add New Mapping</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                      <div>
-                        <label className="label">SKU *</label>
+                    {/* Upload CSV mapping */}
+                    <h3 className="text-md font-semibold mb-2 mt-4">Upload Title Mapping CSV</h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      CSV must have columns: <code className="bg-gray-100 px-1 rounded">sku</code>, <code className="bg-gray-100 px-1 rounded">product_title</code>, and optionally <code className="bg-gray-100 px-1 rounded">variant_title</code>.
+                    </p>
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1">
                         <input
-                          type="text"
-                          value={newMapping.sku}
-                          onChange={(e) => setNewMapping((prev) => ({ ...prev, sku: e.target.value }))}
+                          type="file"
+                          accept=".csv"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = async (ev) => {
+                              try {
+                                const Papa = (await import('papaparse')).default;
+                                const parsed = Papa.parse(ev.target.result, {
+                                  header: true,
+                                  skipEmptyLines: true,
+                                });
+                                // Validate columns
+                                const cols = parsed.meta.fields || [];
+                                if (!cols.includes('sku') || !cols.includes('product_title')) {
+                                  setError('CSV must have "sku" and "product_title" columns');
+                                  return;
+                                }
+                                const mappings = parsed.data
+                                  .filter((row) => row.sku && row.product_title)
+                                  .map((row) => ({
+                                    sku: row.sku.trim(),
+                                    product_title: row.product_title.trim(),
+                                    variant_title: (row.variant_title || '').trim() || null,
+                                  }));
+                                if (mappings.length === 0) {
+                                  setError('No valid rows found in CSV');
+                                  return;
+                                }
+                                setLoading(true);
+                                await saveSkuTitleMap(selectedVendor.id, mappings);
+                                setSuccess(`Imported ${mappings.length} title mapping(s) from CSV`);
+                                await loadTitleMappings(selectedVendor.id);
+                                e.target.value = '';
+                              } catch (err) {
+                                setError('Failed to process title mapping CSV: ' + err.message);
+                              } finally {
+                                setLoading(false);
+                              }
+                            };
+                            reader.readAsText(file);
+                          }}
                           className="input-field text-sm"
-                          placeholder="e.g., COL 28916"
+                          disabled={loading}
                         />
                       </div>
-                      <div>
-                        <label className="label">Product Title *</label>
-                        <input
-                          type="text"
-                          value={newMapping.product_title}
-                          onChange={(e) => setNewMapping((prev) => ({ ...prev, product_title: e.target.value }))}
-                          className="input-field text-sm"
-                          placeholder="Current product name"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Variant Title</label>
-                        <input
-                          type="text"
-                          value={newMapping.variant_title}
-                          onChange={(e) => setNewMapping((prev) => ({ ...prev, variant_title: e.target.value }))}
-                          className="input-field text-sm"
-                          placeholder="e.g., 16 FR - Box of 30"
-                        />
-                      </div>
-                      <button
-                        onClick={async () => {
-                          if (!newMapping.sku || !newMapping.product_title) {
-                            setError('SKU and Product Title are required');
-                            return;
-                          }
-                          try {
-                            setLoading(true);
-                            await saveSkuTitleMap(selectedVendor.id, [newMapping]);
-                            setSuccess(`Added mapping for ${newMapping.sku}`);
-                            setNewMapping({ sku: '', product_title: '', variant_title: '' });
-                            await loadTitleMappings(selectedVendor.id);
-                          } catch (err) {
-                            setError('Failed to add mapping');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        disabled={loading}
-                        className="btn-primary text-sm"
-                      >
-                        Add
-                      </button>
                     </div>
                   </div>
                 )}
