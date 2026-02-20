@@ -533,28 +533,22 @@ export default function VendorDashboard() {
     0
   );
 
-  // Calculate category share
+  // Calculate category share (product sales / category sales)
+  const totalCategorySales = filteredMonths.reduce(
+    (sum, m) => sum + (categoryMonthly[m]?.totalSales || 0),
+    0
+  );
+  const totalPrevCategorySales = filteredMonths.reduce(
+    (sum, m) => sum + (categoryMonthly[m]?.prevTotalSales || 0),
+    0
+  );
   const categoryShare =
-    filteredMonths.length > 0 && campaignTotalSales > 0
-      ? (
-          (filteredMonths.reduce(
-            (sum, m) => sum + (categoryMonthly[m]?.totalSales || 0),
-            0
-          ) /
-            campaignTotalSales) *
-          100
-        ).toFixed(1)
+    filteredMonths.length > 0 && totalCategorySales > 0
+      ? ((campaignTotalSales / totalCategorySales) * 100).toFixed(1)
       : 0;
   const prevCategoryShare =
-    filteredMonths.length > 0 && campaignPrevSales > 0
-      ? (
-          (filteredMonths.reduce(
-            (sum, m) => sum + (categoryMonthly[m]?.prevTotalSales || 0),
-            0
-          ) /
-            campaignPrevSales) *
-          100
-        ).toFixed(1)
+    filteredMonths.length > 0 && totalPrevCategorySales > 0
+      ? ((campaignPrevSales / totalPrevCategorySales) * 100).toFixed(1)
       : 0;
 
   return (
@@ -1198,13 +1192,13 @@ export default function VendorDashboard() {
                     rows={filteredMonths.map((month) => {
                       const productSales = monthlyTotals[month]?.totalSales || 0;
                       const categorySales = categoryMonthly[month]?.totalSales || 0;
-                      const share = productSales > 0
-                        ? ((categorySales / productSales) * 100).toFixed(1)
+                      const share = categorySales > 0
+                        ? ((productSales / categorySales) * 100).toFixed(1)
                         : '0.0';
                       const prevProductSales = monthlyTotals[month]?.prevTotalSales || 0;
                       const prevCategorySales = categoryMonthly[month]?.prevTotalSales || 0;
-                      const prevShare = prevProductSales > 0
-                        ? ((prevCategorySales / prevProductSales) * 100).toFixed(1)
+                      const prevShare = prevCategorySales > 0
+                        ? ((prevProductSales / prevCategorySales) * 100).toFixed(1)
                         : '0.0';
 
                       return {
@@ -1233,8 +1227,8 @@ export default function VendorDashboard() {
                                 monthlyTotals[month]?.totalSales || 0;
                               const categorySales =
                                 categoryMonthly[month]?.totalSales || 0;
-                              return productSales > 0
-                                ? (categorySales / productSales) * 100
+                              return categorySales > 0
+                                ? (productSales / categorySales) * 100
                                 : 0;
                             }),
                             borderColor: BRAND_COLORS.current,
@@ -1255,8 +1249,8 @@ export default function VendorDashboard() {
                                 monthlyTotals[month]?.prevTotalSales || 0;
                               const prevCategorySales =
                                 categoryMonthly[month]?.prevTotalSales || 0;
-                              return prevProductSales > 0
-                                ? (prevCategorySales / prevProductSales) * 100
+                              return prevCategorySales > 0
+                                ? (prevProductSales / prevCategorySales) * 100
                                 : 0;
                             }),
                             borderColor: BRAND_COLORS.previous,
