@@ -699,7 +699,7 @@ export default function VendorDashboard() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 mb-1">
-                  Prepared for {vendor.name}
+                  Payless Medical Campaign Report
                 </h1>
                 {currentReport?.product_name && (
                   <p className="text-lg text-slate-600">{currentReport.product_name}</p>
