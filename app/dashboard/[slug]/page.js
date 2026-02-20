@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -36,10 +35,7 @@ import {
   generateExecutiveSummary,
 } from '@/lib/insights';
 
-const html2canvas = dynamic(() => import('html2canvas'), { ssr: false });
-const jsPDF = dynamic(() => import('jspdf').then((mod) => mod.jsPDF), {
-  ssr: false,
-});
+// html2canvas and jsPDF loaded dynamically when needed (not React components)
 
 ChartJS.register(
   CategoryScale,
@@ -148,20 +144,18 @@ const KPICard = ({ title, value, previousValue, isPercentage = false, isCurrency
   );
 };
 
-// Insight box component
-const InsightBox = ({ insights }) => (
-  <div className="insight-box mb-6">
-    <h3 className="text-lg font-bold text-white mb-3">Key Insights</h3>
-    <ul className="space-y-2">
-      {insights.map((insight, idx) => (
-        <li key={idx} className="text-white text-sm leading-relaxed flex items-start">
-          <span className="mr-3 text-lg">•</span>
-          <span>{insight}</span>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+// Insight box component - handles both string and array inputs
+const InsightBox = ({ insights }) => {
+  if (!insights) return null;
+  const text = typeof insights === 'string' ? insights : Array.isArray(insights) ? insights.join(' ') : String(insights);
+  if (!text || text.length === 0) return null;
+  return (
+    <div className="insight-box mb-6">
+      <h3 className="text-lg font-bold text-slate-800 mb-3">Key Insights</h3>
+      <p className="text-slate-700 text-sm leading-relaxed">{text}</p>
+    </div>
+  );
+};
 
 // Tab navigation component
 const TabNavigation = ({ tabs, activeTab, setActiveTab }) => (
@@ -278,7 +272,7 @@ export default function VendorDashboard() {
         }
 
         // Restructure product data
-        const skuMap = vendorData.sku_map || {};
+        const skuMap = {}; // SKUs auto-detected from CSV data
         const restructuredSkuData = {};
         const restructuredTotals = {};
         const monthsList = [];
@@ -308,27 +302,33 @@ export default function VendorDashboard() {
             };
           }
 
+          const totalSales = parseFloat(row.total_sales) || 0;
+          const netItems = parseInt(row.net_items) || 0;
+          const newCustomers = parseInt(row.new_customers) || 0;
+          const returningCustomers = parseInt(row.returning_customers) || 0;
+          const prevTotalSales = parseFloat(row.prev_total_sales) || 0;
+          const prevNetItems = parseInt(row.prev_net_items) || 0;
+          const prevNewCustomers = parseInt(row.prev_new_customers) || 0;
+          const prevReturningCustomers = parseInt(row.prev_returning_customers) || 0;
+
           restructuredSkuData[month][sku] = {
-            totalSales: row.total_sales || 0,
-            netItems: row.net_items || 0,
-            newCustomers: row.new_customers || 0,
-            returningCustomers: row.returning_customers || 0,
-            prevTotalSales: row.prev_total_sales || 0,
-            prevNetItems: row.prev_net_items || 0,
-            skuLabel: skuMap[sku] || sku,
+            totalSales,
+            netItems,
+            newCustomers,
+            returningCustomers,
+            prevTotalSales,
+            prevNetItems,
+            skuLabel: row.sku_label || sku,
           };
 
-          restructuredTotals[month].totalSales += row.total_sales || 0;
-          restructuredTotals[month].netItems += row.net_items || 0;
-          restructuredTotals[month].newCustomers += row.new_customers || 0;
-          restructuredTotals[month].returningCustomers +=
-            row.returning_customers || 0;
-          restructuredTotals[month].prevTotalSales += row.prev_total_sales || 0;
-          restructuredTotals[month].prevNetItems += row.prev_net_items || 0;
-          restructuredTotals[month].prevNewCustomers +=
-            row.prev_new_customers || 0;
-          restructuredTotals[month].prevReturningCustomers +=
-            row.prev_returning_customers || 0;
+          restructuredTotals[month].totalSales += totalSales;
+          restructuredTotals[month].netItems += netItems;
+          restructuredTotals[month].newCustomers += newCustomers;
+          restructuredTotals[month].returningCustomers += returningCustomers;
+          restructuredTotals[month].prevTotalSales += prevTotalSales;
+          restructuredTotals[month].prevNetItems += prevNetItems;
+          restructuredTotals[month].prevNewCustomers += prevNewCustomers;
+          restructuredTotals[month].prevReturningCustomers += prevReturningCustomers;
         });
 
         // Add all SKUs to all months (even if 0 sales)
@@ -361,9 +361,8 @@ export default function VendorDashboard() {
               prevTotalSales: 0,
             };
           }
-          restructuredCategoryData[month].totalSales = row.total_sales || 0;
-          restructuredCategoryData[month].prevTotalSales =
-            row.prev_total_sales || 0;
+          restructuredCategoryData[month].totalSales = parseFloat(row.total_sales) || 0;
+          restructuredCategoryData[month].prevTotalSales = parseFloat(row.prev_total_sales) || 0;
         });
 
         setMonthlySkuData(restructuredSkuData);
@@ -409,14 +408,19 @@ export default function VendorDashboard() {
   const handleExportPDF = async () => {
     try {
       setExporting(true);
-      const canvas = await html2canvas(dashboardRef.current, {
+      const html2canvasModule = await import('html2canvas');
+      const html2canvasFunc = html2canvasModule.default;
+      const jsPDFModule = await import('jspdf');
+      const jsPDFClass = jsPDFModule.jsPDF;
+
+      const canvas = await html2canvasFunc(dashboardRef.current, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
       });
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdf = new jsPDFClass('p', 'mm', 'a4');
       const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
