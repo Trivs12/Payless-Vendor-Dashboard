@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAppSetting } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [mode, setMode] = useState('vendor'); // 'vendor' or 'admin'
@@ -9,7 +10,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState(null);
   const router = useRouter();
+
+  useEffect(() => {
+    async function loadLogo() {
+      try {
+        const loginLogo = await getAppSetting('login_logo');
+        if (loginLogo) {
+          setCompanyLogo(loginLogo);
+          return;
+        }
+        const logo = await getAppSetting('company_logo');
+        if (logo) setCompanyLogo(logo);
+      } catch (e) {
+        // Silently fail - will show fallback
+      }
+    }
+    loadLogo();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -54,9 +73,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo area */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 text-white text-2xl font-bold mb-4 shadow-lg">
-            CP
-          </div>
+          {companyLogo ? (
+            <img src={companyLogo} alt="Company Logo" className="h-16 mx-auto mb-4 object-contain" />
+          ) : (
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 text-white text-2xl font-bold mb-4 shadow-lg">
+              CP
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-gray-900">Campaign Performance</h1>
           <p className="text-gray-500 mt-1">Vendor Analytics Dashboard</p>
         </div>

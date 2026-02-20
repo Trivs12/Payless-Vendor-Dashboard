@@ -73,6 +73,8 @@ export default function AdminPage() {
   // Company logo state
   const [companyLogo, setCompanyLogo] = useState(null);
   const [companyLogoSaving, setCompanyLogoSaving] = useState(false);
+  const [loginLogo, setLoginLogo] = useState(null);
+  const [loginLogoSaving, setLoginLogoSaving] = useState(false);
 
   // Admin password state
   const [newPassword, setNewPassword] = useState('');
@@ -121,6 +123,7 @@ export default function AdminPage() {
     if (isAuthorized) {
       loadVendors();
       loadCompanyLogo();
+      loadLoginLogo();
     }
   }, [isAuthorized]);
 
@@ -141,6 +144,15 @@ export default function AdminPage() {
     }
   };
 
+  const loadLoginLogo = async () => {
+    try {
+      const logo = await getAppSetting('login_logo');
+      if (logo) setLoginLogo(logo);
+    } catch (err) {
+      console.error('Failed to load login logo:', err);
+    }
+  };
+
   const handleCompanyLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -154,6 +166,22 @@ export default function AdminPage() {
       setError('Failed to save company logo');
     } finally {
       setCompanyLogoSaving(false);
+    }
+  };
+
+  const handleLoginLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setLoginLogoSaving(true);
+      const base64 = await fileToBase64(file);
+      await saveAppSetting('login_logo', base64);
+      setLoginLogo(base64);
+      setSuccess('Login page logo saved');
+    } catch (err) {
+      setError('Failed to save login page logo');
+    } finally {
+      setLoginLogoSaving(false);
     }
   };
 
@@ -677,6 +705,47 @@ export default function AdminPage() {
                     setSuccess('Company logo removed');
                   } catch (err) {
                     setError('Failed to remove logo');
+                  }
+                }}
+                className="text-xs text-red-600 hover:text-red-800"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Login Page Logo Section */}
+        <div className="card mb-6">
+          <h2 className="text-xl font-bold mb-3">Login Page Logo</h2>
+          <p className="text-sm text-gray-500 mb-3">This logo appears on the login page. If not set, the report logo will be used.</p>
+          <div className="flex items-center gap-4">
+            {loginLogo && (
+              <img
+                src={loginLogo}
+                alt="Login page logo"
+                className="h-14 object-contain rounded border border-gray-200 p-1"
+              />
+            )}
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLoginLogoUpload}
+                className="input-field text-sm"
+                disabled={loginLogoSaving}
+              />
+              {loginLogoSaving && <span className="text-xs text-gray-500 mt-1">Saving...</span>}
+            </div>
+            {loginLogo && (
+              <button
+                onClick={async () => {
+                  try {
+                    await saveAppSetting('login_logo', null);
+                    setLoginLogo(null);
+                    setSuccess('Login page logo removed');
+                  } catch (err) {
+                    setError('Failed to remove login page logo');
                   }
                 }}
                 className="text-xs text-red-600 hover:text-red-800"
