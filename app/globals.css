@@ -68,6 +68,11 @@ body {
   .card { box-shadow: none; border: 1px solid #e5e7eb; }
 }
 
+/* Collapsible sections */
+details[open] > summary .inline-block {
+  transform: rotate(90deg);
+}
+
 /* Chart container */
 .chart-container {
   position: relative;

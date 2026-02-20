@@ -180,6 +180,13 @@ const TabNavigation = ({ tabs, activeTab, setActiveTab }) => (
   </div>
 );
 
+// Helper: format YYYY-MM to "September 2025"
+const formatMonthTitle = (monthStr) => {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+};
+
 // Helper: parse display value for sorting (extract number from formatted strings)
 const parseSortValue = (value) => {
   if (value === null || value === undefined || value === '—') return -Infinity;
@@ -1175,27 +1182,32 @@ export default function VendorDashboard() {
                     const totalPrior = skuKeys.reduce((sum, sku) => sum + (monthlySkuData[month][sku]?.prevTotalSales || 0), 0);
                     const daysInMonth = getDaysInMonth(month);
                     return (
-                    <div key={`sales-${month}`} className="mb-6">
-                      <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
+                    <details key={`sales-${month}`} className="mb-6" open>
+                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none flex items-center gap-2">
+                        <span className="text-slate-400 inline-block transition-transform">▶</span>
+                        {formatMonthTitle(month)} Results
+                      </summary>
+                      <div className="mt-2">
                       <DataTable
-                        columns={['Product', 'Variant', 'SKU', 'Current Sales', 'Prior Year Sales', 'Change %']}
+                        columns={['SKU', 'Product', 'Variant', 'Current Sales', 'Prior Year Sales', 'Change %']}
                         rows={skuKeys.map((sku) => {
                           const data = monthlySkuData[month][sku];
                           return {
+                            'SKU': sku,
                             'Product': data.productTitle || data.skuLabel,
                             'Variant': data.variantTitle && data.variantTitle.toLowerCase() !== 'default title' ? data.variantTitle : '—',
-                            'SKU': sku,
                             'Current Sales': formatCurrency(data.totalSales),
                             'Prior Year Sales': formatCurrency(data.prevTotalSales),
                             'Change %': formatPercent(data.totalSales, data.prevTotalSales),
                           };
                         })}
                         footerRows={[
-                          { 'Product': 'Total', 'Variant': '', 'SKU': '', 'Current Sales': formatCurrency(totalCurrent), 'Prior Year Sales': formatCurrency(totalPrior), 'Change %': formatPercent(totalCurrent, totalPrior), _style: 'highlight' },
-                          { 'Product': 'Avg Daily Sales', 'Variant': '', 'SKU': '', 'Current Sales': formatCurrency(totalCurrent / daysInMonth), 'Prior Year Sales': formatCurrency(totalPrior / daysInMonth), 'Change %': '', _style: 'default' },
+                          { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Sales': formatCurrency(totalCurrent), 'Prior Year Sales': formatCurrency(totalPrior), 'Change %': formatPercent(totalCurrent, totalPrior), _style: 'highlight' },
+                          { 'SKU': '', 'Product': 'Avg Daily Sales', 'Variant': '', 'Current Sales': formatCurrency(totalCurrent / daysInMonth), 'Prior Year Sales': formatCurrency(totalPrior / daysInMonth), 'Change %': '', _style: 'default' },
                         ]}
                       />
-                    </div>
+                      </div>
+                    </details>
                     );
                   })}
 
@@ -1209,27 +1221,32 @@ export default function VendorDashboard() {
                     const totalPriorUnits = skuKeys.reduce((sum, sku) => sum + (monthlySkuData[month][sku]?.prevNetItems || 0), 0);
                     const daysInMonth = getDaysInMonth(month);
                     return (
-                    <div key={`units-${month}`} className="mb-6">
-                      <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
+                    <details key={`units-${month}`} className="mb-6" open>
+                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none flex items-center gap-2">
+                        <span className="text-slate-400 inline-block transition-transform">▶</span>
+                        {formatMonthTitle(month)} Results
+                      </summary>
+                      <div className="mt-2">
                       <DataTable
-                        columns={['Product', 'Variant', 'SKU', 'Current Units', 'Prior Year Units', 'Change %']}
+                        columns={['SKU', 'Product', 'Variant', 'Current Units', 'Prior Year Units', 'Change %']}
                         rows={skuKeys.map((sku) => {
                           const data = monthlySkuData[month][sku];
                           return {
+                            'SKU': sku,
                             'Product': data.productTitle || data.skuLabel,
                             'Variant': data.variantTitle && data.variantTitle.toLowerCase() !== 'default title' ? data.variantTitle : '—',
-                            'SKU': sku,
                             'Current Units': data.netItems.toLocaleString(),
                             'Prior Year Units': (data.prevNetItems || 0).toLocaleString(),
                             'Change %': formatPercent(data.netItems, data.prevNetItems || 0),
                           };
                         })}
                         footerRows={[
-                          { 'Product': 'Total', 'Variant': '', 'SKU': '', 'Current Units': totalCurrentUnits.toLocaleString(), 'Prior Year Units': totalPriorUnits.toLocaleString(), 'Change %': formatPercent(totalCurrentUnits, totalPriorUnits), _style: 'highlight' },
-                          { 'Product': 'Avg Daily Units', 'Variant': '', 'SKU': '', 'Current Units': (totalCurrentUnits / daysInMonth).toFixed(1), 'Prior Year Units': (totalPriorUnits / daysInMonth).toFixed(1), 'Change %': '', _style: 'default' },
+                          { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Units': totalCurrentUnits.toLocaleString(), 'Prior Year Units': totalPriorUnits.toLocaleString(), 'Change %': formatPercent(totalCurrentUnits, totalPriorUnits), _style: 'highlight' },
+                          { 'SKU': '', 'Product': 'Avg Daily Units', 'Variant': '', 'Current Units': (totalCurrentUnits / daysInMonth).toFixed(1), 'Prior Year Units': (totalPriorUnits / daysInMonth).toFixed(1), 'Change %': '', _style: 'default' },
                         ]}
                       />
-                    </div>
+                      </div>
+                    </details>
                     );
                   })}
                 </div>
@@ -1254,32 +1271,34 @@ export default function VendorDashboard() {
                         const daysInPrior = getDaysInMonth(prevMonth);
 
                         return (
-                          <div key={month} className="mb-8">
-                            <h3 className="text-lg font-bold text-slate-900 mb-3">
-                              {prevMonth} → {month}
-                            </h3>
+                          <details key={month} className="mb-8" open>
+                            <summary className="text-lg font-bold text-slate-900 mb-3 cursor-pointer hover:text-slate-700 select-none list-none flex items-center gap-2">
+                              <span className="text-slate-400 inline-block transition-transform">▶</span>
+                              {formatMonthTitle(month)} vs {formatMonthTitle(prevMonth)} (Previous Period)
+                            </summary>
+                            <div className="mt-3">
 
                             {/* MoM Sales Comparison */}
                             <h4 className="text-md font-semibold text-slate-800 mb-3">
                               Sales Comparison
                             </h4>
                             <DataTable
-                              columns={['Product', 'Variant', 'SKU', 'Current Month', 'Prior Month', 'Change %']}
+                              columns={['SKU', 'Product', 'Variant', 'Current Month', 'Prior Month', 'Change %']}
                               rows={skuKeys.map((sku) => {
                                 const currentData = monthlySkuData[month][sku];
                                 const priorData = monthlySkuData[prevMonth]?.[sku];
                                 return {
+                                  'SKU': sku,
                                   'Product': currentData.productTitle || currentData.skuLabel,
                                   'Variant': currentData.variantTitle && currentData.variantTitle.toLowerCase() !== 'default title' ? currentData.variantTitle : '—',
-                                  'SKU': sku,
                                   'Current Month': formatCurrency(currentData.totalSales),
                                   'Prior Month': formatCurrency(priorData?.totalSales || 0),
                                   'Change %': formatPercent(currentData.totalSales, priorData?.totalSales || 0),
                                 };
                               })}
                               footerRows={[
-                                { 'Product': 'Total', 'Variant': '', 'SKU': '', 'Current Month': formatCurrency(totalCurrentSales), 'Prior Month': formatCurrency(totalPriorSales), 'Change %': formatPercent(totalCurrentSales, totalPriorSales), _style: 'highlight' },
-                                { 'Product': 'Avg Daily Sales', 'Variant': '', 'SKU': '', 'Current Month': formatCurrency(totalCurrentSales / daysInCurrent), 'Prior Month': formatCurrency(totalPriorSales / daysInPrior), 'Change %': '', _style: 'default' },
+                                { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Month': formatCurrency(totalCurrentSales), 'Prior Month': formatCurrency(totalPriorSales), 'Change %': formatPercent(totalCurrentSales, totalPriorSales), _style: 'highlight' },
+                                { 'SKU': '', 'Product': 'Avg Daily Sales', 'Variant': '', 'Current Month': formatCurrency(totalCurrentSales / daysInCurrent), 'Prior Month': formatCurrency(totalPriorSales / daysInPrior), 'Change %': '', _style: 'default' },
                               ]}
                             />
 
@@ -1288,25 +1307,26 @@ export default function VendorDashboard() {
                               Units Sold Comparison
                             </h4>
                             <DataTable
-                              columns={['Product', 'Variant', 'SKU', 'Current Month', 'Prior Month', 'Change %']}
+                              columns={['SKU', 'Product', 'Variant', 'Current Month', 'Prior Month', 'Change %']}
                               rows={skuKeys.map((sku) => {
                                 const currentData = monthlySkuData[month][sku];
                                 const priorData = monthlySkuData[prevMonth]?.[sku];
                                 return {
+                                  'SKU': sku,
                                   'Product': currentData.productTitle || currentData.skuLabel,
                                   'Variant': currentData.variantTitle && currentData.variantTitle.toLowerCase() !== 'default title' ? currentData.variantTitle : '—',
-                                  'SKU': sku,
                                   'Current Month': currentData.netItems.toLocaleString(),
                                   'Prior Month': (priorData?.netItems || 0).toLocaleString(),
                                   'Change %': formatPercent(currentData.netItems, priorData?.netItems || 0),
                                 };
                               })}
                               footerRows={[
-                                { 'Product': 'Total', 'Variant': '', 'SKU': '', 'Current Month': totalCurrentUnits.toLocaleString(), 'Prior Month': totalPriorUnits.toLocaleString(), 'Change %': formatPercent(totalCurrentUnits, totalPriorUnits), _style: 'highlight' },
-                                { 'Product': 'Avg Daily Units', 'Variant': '', 'SKU': '', 'Current Month': (totalCurrentUnits / daysInCurrent).toFixed(1), 'Prior Month': (totalPriorUnits / daysInPrior).toFixed(1), 'Change %': '', _style: 'default' },
+                                { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Month': totalCurrentUnits.toLocaleString(), 'Prior Month': totalPriorUnits.toLocaleString(), 'Change %': formatPercent(totalCurrentUnits, totalPriorUnits), _style: 'highlight' },
+                                { 'SKU': '', 'Product': 'Avg Daily Units', 'Variant': '', 'Current Month': (totalCurrentUnits / daysInCurrent).toFixed(1), 'Prior Month': (totalPriorUnits / daysInPrior).toFixed(1), 'Change %': '', _style: 'default' },
                               ]}
                             />
-                          </div>
+                            </div>
+                          </details>
                         );
                       })}
                     </>
@@ -1405,22 +1425,25 @@ export default function VendorDashboard() {
                   </h3>
                   <DataTable
                     columns={[
-                      'SKU Label',
-                      ...filteredMonths,
+                      'SKU',
+                      'Product',
+                      'Variant',
+                      ...filteredMonths.map(formatMonthTitle),
                       'Total',
                     ]}
                     rows={Object.keys(
                       Object.values(monthlySkuData)[0] || {}
                     ).map((sku) => {
-                      const skuLabel = monthlySkuData[filteredMonths[0]][sku]
-                        ?.skuLabel;
+                      const skuData = monthlySkuData[filteredMonths[0]][sku];
                       const row = {
-                        'SKU Label': skuLabel,
+                        'SKU': sku,
+                        'Product': skuData?.productTitle || skuData?.skuLabel || sku,
+                        'Variant': skuData?.variantTitle && skuData.variantTitle.toLowerCase() !== 'default title' ? skuData.variantTitle : '—',
                       };
                       let total = 0;
                       filteredMonths.forEach((month) => {
                         const sales = monthlySkuData[month][sku]?.totalSales || 0;
-                        row[month] = formatCurrency(sales);
+                        row[formatMonthTitle(month)] = formatCurrency(sales);
                         total += sales;
                       });
                       row['Total'] = formatCurrency(total);
@@ -1434,22 +1457,25 @@ export default function VendorDashboard() {
                   </h3>
                   <DataTable
                     columns={[
-                      'SKU Label',
-                      ...filteredMonths,
+                      'SKU',
+                      'Product',
+                      'Variant',
+                      ...filteredMonths.map(formatMonthTitle),
                       'Total',
                     ]}
                     rows={Object.keys(
                       Object.values(monthlySkuData)[0] || {}
                     ).map((sku) => {
-                      const skuLabel = monthlySkuData[filteredMonths[0]][sku]
-                        ?.skuLabel;
+                      const skuData = monthlySkuData[filteredMonths[0]][sku];
                       const row = {
-                        'SKU Label': skuLabel,
+                        'SKU': sku,
+                        'Product': skuData?.productTitle || skuData?.skuLabel || sku,
+                        'Variant': skuData?.variantTitle && skuData.variantTitle.toLowerCase() !== 'default title' ? skuData.variantTitle : '—',
                       };
                       let total = 0;
                       filteredMonths.forEach((month) => {
                         const units = monthlySkuData[month][sku]?.netItems || 0;
-                        row[month] = units.toLocaleString();
+                        row[formatMonthTitle(month)] = units.toLocaleString();
                         total += units;
                       });
                       row['Total'] = total.toLocaleString();
