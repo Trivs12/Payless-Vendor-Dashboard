@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -17,6 +17,7 @@ import {
 import { Bar, Line } from 'react-chartjs-2';
 import {
   getVendorBySlug,
+  getReportsByVendorId,
   getProductData,
   getCategoryData,
   getDailyProductData,
@@ -228,12 +229,17 @@ const DataTable = ({ columns, rows, className = '' }) => {
 export default function VendorDashboard() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug;
+  const reportIdFromUrl = searchParams.get('report');
   const dashboardRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [vendor, setVendor] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [currentReport, setCurrentReport] = useState(null);
+  const [showReportMenu, setShowReportMenu] = useState(false);
   const [monthlySkuData, setMonthlySkuData] = useState({});
   const [monthlyTotals, setMonthlyTotals] = useState({});
   const [categoryMonthly, setCategoryMonthly] = useState({});
@@ -279,11 +285,36 @@ export default function VendorDashboard() {
         const logo = await getAppSetting('company_logo');
         if (logo) setCompanyLogo(logo);
 
-        // Load product, category, daily data, and title mappings
-        const productRows = await getProductData(vendorId);
-        const categoryRows = await getCategoryData(vendorId);
-        const dailyRows = await getDailyProductData(vendorId);
-        const titleMappings = await getSkuTitleMap(vendorId);
+        // Load reports for this vendor
+        const reportsData = await getReportsByVendorId(vendorId);
+        setReports(reportsData);
+
+        // Determine which report to display
+        let selectedReport;
+        if (reportIdFromUrl) {
+          selectedReport = reportsData.find((r) => r.id === reportIdFromUrl);
+        }
+        if (!selectedReport) {
+          selectedReport = reportsData.find((r) => r.is_default) || reportsData[0];
+        }
+
+        if (!selectedReport) {
+          setMonthlySkuData({});
+          setMonthlyTotals({});
+          setCategoryMonthly({});
+          setMonths([]);
+          setLoading(false);
+          return;
+        }
+        setCurrentReport(selectedReport);
+
+        const reportId = selectedReport.id;
+
+        // Load product, category, daily data, and title mappings by report
+        const productRows = await getProductData(reportId);
+        const categoryRows = await getCategoryData(reportId);
+        const dailyRows = await getDailyProductData(reportId);
+        const titleMappings = await getSkuTitleMap(reportId);
 
         // Build SKU -> title lookup from mappings
         const titleMap = {};
@@ -443,7 +474,7 @@ export default function VendorDashboard() {
     };
 
     checkAuthAndLoadData();
-  }, [router, slug]);
+  }, [router, slug, reportIdFromUrl]);
 
   // Apply date range filter
   const handleApplyDateRange = () => {
@@ -591,41 +622,88 @@ export default function VendorDashboard() {
       ? ((campaignPrevSales / totalPrevCategorySales) * 100).toFixed(1)
       : 0;
 
+  const handleReportChange = (reportId) => {
+    setShowReportMenu(false);
+    router.push(`/dashboard/${slug}?report=${reportId}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Top Navbar */}
+      <nav className="bg-white shadow sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {vendor.logo_url && (
+              <img
+                src={vendor.logo_url}
+                alt={vendor.name}
+                className="h-10 object-contain"
+              />
+            )}
+            <span className="font-semibold text-slate-900 text-lg">{vendor.name}</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Reports dropdown pill */}
+            {reports.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowReportMenu(!showReportMenu)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                >
+                  <span className="text-sm font-semibold text-blue-900">
+                    {currentReport?.name || 'Reports'}
+                  </span>
+                  <svg className={`w-4 h-4 text-blue-700 transition-transform ${showReportMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showReportMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                    {reports.map((report) => (
+                      <button
+                        key={report.id}
+                        onClick={() => handleReportChange(report.id)}
+                        className={`w-full text-left px-4 py-3 text-sm hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          report.id === currentReport?.id
+                            ? 'bg-blue-50 font-semibold text-blue-900'
+                            : 'text-slate-700'
+                        }`}
+                      >
+                        {report.name}
+                        {report.is_default && (
+                          <span className="ml-2 text-xs text-slate-400">(Default)</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {companyLogo && (
+              <div className="flex items-center gap-2 ml-2 pl-4 border-l border-slate-200">
+                <span className="text-xs text-slate-400 font-medium">Prepared by</span>
+                <img src={companyLogo} alt="Company logo" className="h-7 object-contain" />
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
       <div ref={dashboardRef} className="p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Prepared by bar */}
-          {companyLogo && (
-            <div className="flex justify-end items-center gap-2 mb-3">
-              <span className="text-sm text-slate-500 font-medium">Prepared by:</span>
-              <img
-                src={companyLogo}
-                alt="Company logo"
-                className="h-8 object-contain"
-              />
-            </div>
-          )}
-
           {/* Header */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                {vendor.logo_url && (
-                  <img
-                    src={vendor.logo_url}
-                    alt={`${vendor.name} logo`}
-                    className="h-14 object-contain"
-                  />
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 mb-1">
+                  Prepared for {vendor.name}
+                </h1>
+                {currentReport?.product_name && (
+                  <p className="text-lg text-slate-600">{currentReport.product_name}</p>
                 )}
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-900 mb-1">
-                    Prepared for {vendor.name}
-                  </h1>
-                  {vendor.product_name && (
-                    <p className="text-lg text-slate-600">{vendor.product_name}</p>
-                  )}
-                </div>
               </div>
               <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold text-sm">
                 {filteredMonths[0]} to {filteredMonths[filteredMonths.length - 1]}

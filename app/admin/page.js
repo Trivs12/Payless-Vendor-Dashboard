@@ -7,6 +7,11 @@ import {
   createVendor,
   updateVendor,
   deleteVendor,
+  getReportsByVendorId,
+  createReport,
+  updateReport,
+  deleteReport,
+  setDefaultReport,
   saveProductData,
   saveDailyProductData,
   saveCategoryData,
@@ -34,18 +39,30 @@ export default function AdminPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  // Reports state
+  const [vendorReports, setVendorReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [showCreateReportModal, setShowCreateReportModal] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [reportFormData, setReportFormData] = useState({
+    name: '',
+    product_name: '',
+    category_name: '',
+    is_default: false,
+  });
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState(null);
+  const [showDeleteReportConfirm, setShowDeleteReportConfirm] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     password: '',
-    product_name: '',
-    category_name: '',
     monthly_budget: '',
     show_budget: false,
     campaign_start: '',
@@ -60,10 +77,9 @@ export default function AdminPage() {
   // SKU title mapping state
   const [titleMappings, setTitleMappings] = useState([]);
   const [editingMappings, setEditingMappings] = useState([]);
-  // newMapping state removed — title mapping now uses CSV upload
 
   // CSV upload states
-  const [selectedTab, setSelectedTab] = useState('settings'); // settings | upload | history
+  const [selectedTab, setSelectedTab] = useState('settings');
   const [productCSVFile, setProductCSVFile] = useState(null);
   const [categoryCSVFile, setCategoryCSVFile] = useState(null);
   const [csvPreview, setCSVPreview] = useState(null);
@@ -161,9 +177,32 @@ export default function AdminPage() {
     }
   };
 
-  const loadUploadHistory = async (vendorId) => {
+  const loadVendorReports = async (vendorId) => {
     try {
-      const history = await getUploadHistory(vendorId);
+      const reports = await getReportsByVendorId(vendorId);
+      setVendorReports(reports || []);
+      // Auto-select first report (default is first since sorted by is_default desc)
+      if (reports && reports.length > 0) {
+        setSelectedReport(reports[0]);
+      } else {
+        setSelectedReport(null);
+      }
+      return reports || [];
+    } catch (err) {
+      console.error('Failed to load reports:', err);
+      setVendorReports([]);
+      setSelectedReport(null);
+      return [];
+    }
+  };
+
+  const loadUploadHistory = async (reportId) => {
+    if (!reportId) {
+      setUploadHistory([]);
+      return;
+    }
+    try {
+      const history = await getUploadHistory(reportId);
       setUploadHistory(history || []);
     } catch (err) {
       console.error('Failed to load upload history:', err);
@@ -185,9 +224,14 @@ export default function AdminPage() {
     }));
   };
 
-  const loadTitleMappings = async (vendorId) => {
+  const loadTitleMappings = async (reportId) => {
+    if (!reportId) {
+      setTitleMappings([]);
+      setEditingMappings([]);
+      return;
+    }
     try {
-      const mappings = await getSkuTitleMap(vendorId);
+      const mappings = await getSkuTitleMap(reportId);
       setTitleMappings(mappings);
       setEditingMappings(mappings.map((m) => ({ ...m })));
     } catch (err) {
@@ -198,15 +242,32 @@ export default function AdminPage() {
   };
 
   // Handle vendor selection
-  const handleSelectVendor = (vendor) => {
+  const handleSelectVendor = async (vendor) => {
     setSelectedVendor(vendor);
     setFormData(vendor);
     setSelectedTab('settings');
     setProductCSVFile(null);
     setCategoryCSVFile(null);
     setCSVPreview(null);
-    loadUploadHistory(vendor.id);
-    loadTitleMappings(vendor.id);
+    const reports = await loadVendorReports(vendor.id);
+    if (reports.length > 0) {
+      loadUploadHistory(reports[0].id);
+      loadTitleMappings(reports[0].id);
+    } else {
+      setUploadHistory([]);
+      setTitleMappings([]);
+      setEditingMappings([]);
+    }
+  };
+
+  // Handle report selection change (for upload/history/titles tabs)
+  const handleReportSelect = (reportId) => {
+    const report = vendorReports.find((r) => r.id === reportId);
+    setSelectedReport(report || null);
+    if (report) {
+      loadUploadHistory(report.id);
+      loadTitleMappings(report.id);
+    }
   };
 
   // Handle create/edit form submission
@@ -216,7 +277,6 @@ export default function AdminPage() {
     setSuccess(null);
 
     try {
-      // Validate required fields
       if (!formData.name || !formData.slug || !formData.password) {
         setError('Name, slug, and password are required');
         return;
@@ -224,31 +284,27 @@ export default function AdminPage() {
 
       setLoading(true);
 
-      // Sanitize data — convert empty strings to null for optional fields
       const sanitized = {
         ...formData,
         monthly_budget: formData.monthly_budget === '' ? null : parseFloat(formData.monthly_budget),
         campaign_start: formData.campaign_start || null,
         campaign_end: formData.campaign_end || null,
-        product_name: formData.product_name || null,
-        category_name: formData.category_name || null,
         notes: formData.notes || null,
       };
+      // Remove product_name and category_name — they live on reports now
+      delete sanitized.product_name;
+      delete sanitized.category_name;
 
       if (selectedVendor?.id) {
-        // Update existing vendor
         await updateVendor(selectedVendor.id, sanitized);
         setSuccess('Vendor updated successfully');
       } else {
-        // Create new vendor
-        const newVendor = await createVendor(sanitized);
+        await createVendor(sanitized);
         setSuccess('Vendor created successfully');
         setFormData({
           name: '',
           slug: '',
           password: '',
-          product_name: '',
-          category_name: '',
           monthly_budget: '',
           show_budget: false,
           campaign_start: '',
@@ -278,10 +334,88 @@ export default function AdminPage() {
       setShowDeleteConfirm(false);
       setVendorToDelete(null);
       setSelectedVendor(null);
+      setVendorReports([]);
+      setSelectedReport(null);
       await loadVendors();
     } catch (err) {
       setError('Failed to delete vendor');
       console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Report CRUD handlers
+  const handleSaveReport = async (e) => {
+    e.preventDefault();
+    if (!selectedVendor) return;
+    setError(null);
+    setSuccess(null);
+
+    try {
+      if (!reportFormData.name) {
+        setError('Report name is required');
+        return;
+      }
+      setLoading(true);
+
+      if (editingReport) {
+        await updateReport(editingReport.id, {
+          name: reportFormData.name,
+          product_name: reportFormData.product_name || null,
+          category_name: reportFormData.category_name || null,
+          is_default: reportFormData.is_default,
+        });
+        if (reportFormData.is_default) {
+          await setDefaultReport(selectedVendor.id, editingReport.id);
+        }
+        setSuccess('Report updated');
+      } else {
+        const newReport = await createReport(selectedVendor.id, {
+          name: reportFormData.name,
+          product_name: reportFormData.product_name || null,
+          category_name: reportFormData.category_name || null,
+          is_default: reportFormData.is_default,
+        });
+        setSuccess('Report created');
+      }
+
+      setShowCreateReportModal(false);
+      setEditingReport(null);
+      setReportFormData({ name: '', product_name: '', category_name: '', is_default: false });
+      await loadVendorReports(selectedVendor.id);
+    } catch (err) {
+      setError(err.message || 'Failed to save report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteReport = async () => {
+    if (!reportToDelete) return;
+    try {
+      setLoading(true);
+      await deleteReport(reportToDelete.id);
+      setSuccess('Report deleted');
+      setShowDeleteReportConfirm(false);
+      setReportToDelete(null);
+      await loadVendorReports(selectedVendor.id);
+    } catch (err) {
+      setError('Failed to delete report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetDefault = async (reportId) => {
+    if (!selectedVendor) return;
+    try {
+      setLoading(true);
+      await setDefaultReport(selectedVendor.id, reportId);
+      setSuccess('Default report updated');
+      await loadVendorReports(selectedVendor.id);
+    } catch (err) {
+      setError('Failed to set default');
     } finally {
       setLoading(false);
     }
@@ -292,6 +426,10 @@ export default function AdminPage() {
     e.preventDefault();
     if (!selectedVendor) {
       setError('Please select a vendor first');
+      return;
+    }
+    if (!selectedReport) {
+      setError('Please select a report first');
       return;
     }
 
@@ -305,25 +443,24 @@ export default function AdminPage() {
       setError(null);
       setSuccess(null);
 
+      const reportId = selectedReport.id;
+
       // Process product CSV if provided
       if (productCSVFile) {
         const productText = await productCSVFile.text();
         const productData = parseProductCSV(productText);
 
-        // Save product data - parseProductCSV returns { monthlySkuData, monthlyTotals, dailyTotals, months, targetSkus }
-        await saveProductData(selectedVendor.id, productData.monthlySkuData);
+        await saveProductData(reportId, productData.monthlySkuData);
 
-        // Save daily data for daily chart view
         if (productData.dailyTotals && Object.keys(productData.dailyTotals).length > 0) {
-          await saveDailyProductData(selectedVendor.id, productData.dailyTotals);
+          await saveDailyProductData(reportId, productData.dailyTotals);
         }
 
-        // Save upload history
         const months = productData.months || [];
         if (months.length > 0) {
           const dateRange = `${months[0]} to ${months[months.length - 1]}`;
           await saveUploadHistory(
-            selectedVendor.id,
+            reportId,
             'product',
             productCSVFile.name,
             productText.split('\n').length - 1,
@@ -337,15 +474,13 @@ export default function AdminPage() {
         const categoryText = await categoryCSVFile.text();
         const categoryData = parseCategoryCSV(categoryText);
 
-        // Save category data - parseCategoryCSV returns { [month]: { totalSales, prevTotalSales } }
-        await saveCategoryData(selectedVendor.id, categoryData);
+        await saveCategoryData(reportId, categoryData);
 
-        // Save upload history
         const categoryMonths = Object.keys(categoryData);
         if (categoryMonths.length > 0) {
           const dateRange = `${categoryMonths.sort()[0]} to ${categoryMonths.sort().pop()}`;
           await saveUploadHistory(
-            selectedVendor.id,
+            reportId,
             'category',
             categoryCSVFile.name,
             categoryMonths.length,
@@ -358,7 +493,7 @@ export default function AdminPage() {
       setProductCSVFile(null);
       setCategoryCSVFile(null);
       setCSVPreview(null);
-      await loadUploadHistory(selectedVendor.id);
+      await loadUploadHistory(reportId);
     } catch (err) {
       setError(err.message || 'Failed to process CSV files');
       console.error(err);
@@ -378,7 +513,6 @@ export default function AdminPage() {
       setCategoryCSVFile(file);
     }
 
-    // Read and preview the CSV
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -413,6 +547,33 @@ export default function AdminPage() {
   const handleLogout = () => {
     sessionStorage.removeItem('auth');
     router.push('/');
+  };
+
+  // Report selector component (used in upload, history, titles tabs)
+  const ReportSelector = () => {
+    if (vendorReports.length === 0) {
+      return (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+          No reports found for this vendor. Create a report first in the Reports tab.
+        </div>
+      );
+    }
+    return (
+      <div className="mb-4">
+        <label className="label">Report</label>
+        <select
+          value={selectedReport?.id || ''}
+          onChange={(e) => handleReportSelect(e.target.value)}
+          className="input-field"
+        >
+          {vendorReports.map((report) => (
+            <option key={report.id} value={report.id}>
+              {report.name}{report.is_default ? ' (Default)' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
   };
 
   if (checkingAuth) {
@@ -510,13 +671,11 @@ export default function AdminPage() {
                       name: '',
                       slug: '',
                       password: '',
-                      product_name: '',
-                      category_name: '',
                       monthly_budget: '',
                       show_budget: false,
                       campaign_start: '',
                       campaign_end: '',
-                                  notes: '',
+                      notes: '',
                     });
                   }}
                   className="btn-primary text-sm"
@@ -549,11 +708,6 @@ export default function AdminPage() {
                           {new Date(vendor.campaign_end).toLocaleDateString()}
                         </div>
                       )}
-                      {vendor.last_upload_date && (
-                        <div className="text-xs text-blue-600 mt-1">
-                          Last upload: {new Date(vendor.last_upload_date).toLocaleDateString()}
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
@@ -572,47 +726,24 @@ export default function AdminPage() {
             ) : (
               <div className="card">
                 {/* Tabs */}
-                <div className="flex space-x-4 mb-6 border-b">
-                  <button
-                    onClick={() => setSelectedTab('settings')}
-                    className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
-                      selectedTab === 'settings'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => setSelectedTab('upload')}
-                    className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
-                      selectedTab === 'upload'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Upload Data
-                  </button>
-                  <button
-                    onClick={() => setSelectedTab('history')}
-                    className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
-                      selectedTab === 'history'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Upload History
-                  </button>
-                  <button
-                    onClick={() => setSelectedTab('titles')}
-                    className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
-                      selectedTab === 'titles'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Title Mapping
-                  </button>
+                <div className="flex space-x-4 mb-6 border-b overflow-x-auto">
+                  {['settings', 'reports', 'upload', 'history', 'titles'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setSelectedTab(tab)}
+                      className={`px-4 py-2 font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                        selectedTab === tab
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      {tab === 'settings' && 'Settings'}
+                      {tab === 'reports' && 'Reports'}
+                      {tab === 'upload' && 'Upload Data'}
+                      {tab === 'history' && 'Upload History'}
+                      {tab === 'titles' && 'Title Mapping'}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Settings Tab */}
@@ -657,39 +788,6 @@ export default function AdminPage() {
                           className="input-field"
                           placeholder="Vendor access password"
                           required
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Product Name</label>
-                        <input
-                          type="text"
-                          value={formData.product_name}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              product_name: e.target.value,
-                            }))
-                          }
-                          className="input-field"
-                          placeholder="e.g., SpeediCath® Flex Hydrophilic Catheter"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Category Name</label>
-                        <input
-                          type="text"
-                          value={formData.category_name}
-                          onChange={(e) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              category_name: e.target.value,
-                            }))
-                          }
-                          className="input-field"
-                          placeholder="e.g., Urology"
                         />
                       </div>
                       <div>
@@ -755,7 +853,6 @@ export default function AdminPage() {
                       />
                     </div>
 
-
                     <div>
                       <label className="label">Vendor Logo</label>
                       <input
@@ -820,105 +917,205 @@ export default function AdminPage() {
                   </form>
                 )}
 
-                {/* Upload Tab */}
-                {selectedTab === 'upload' && (
-                  <form onSubmit={handleCSVUpload} className="space-y-6">
-                    <div>
-                      <label className="label">Product Data CSV</label>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => handleCSVFileChange(e, true)}
-                        className="input-field"
-                      />
-                      {productCSVFile && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          Selected: {productCSVFile.name}
-                        </div>
-                      )}
+                {/* Reports Tab */}
+                {selectedTab === 'reports' && (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm text-gray-500">
+                        Each report has its own product name, category, data uploads, and title mappings.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setEditingReport(null);
+                          setReportFormData({ name: '', product_name: '', category_name: '', is_default: vendorReports.length === 0 });
+                          setShowCreateReportModal(true);
+                        }}
+                        className="btn-primary text-sm"
+                      >
+                        + New Report
+                      </button>
                     </div>
 
-                    <div>
-                      <label className="label">Category Data CSV</label>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => handleCSVFileChange(e, false)}
-                        className="input-field"
-                      />
-                      {categoryCSVFile && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          Selected: {categoryCSVFile.name}
-                        </div>
-                      )}
-                    </div>
-
-                    {csvPreview && (
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="text-sm font-semibold text-blue-900 mb-2">
-                          Preview: {csvPreview.type === 'product' ? 'Product' : 'Category'} CSV
-                        </div>
-                        <div className="text-sm text-blue-800">
-                          <div>Months: {csvPreview.months}</div>
-                          <div>Total Rows: {csvPreview.rows}</div>
-                          <div>Date Range: {csvPreview.dateRange}</div>
-                        </div>
+                    {vendorReports.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No reports yet. Create your first report.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {vendorReports.map((report) => (
+                          <div
+                            key={report.id}
+                            className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-900">{report.name}</span>
+                                  {report.is_default && (
+                                    <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                {report.product_name && (
+                                  <div className="text-sm text-gray-600 mt-1">Product: {report.product_name}</div>
+                                )}
+                                {report.category_name && (
+                                  <div className="text-sm text-gray-600">Category: {report.category_name}</div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!report.is_default && (
+                                  <button
+                                    onClick={() => handleSetDefault(report.id)}
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                    disabled={loading}
+                                  >
+                                    Set Default
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setEditingReport(report);
+                                    setReportFormData({
+                                      name: report.name,
+                                      product_name: report.product_name || '',
+                                      category_name: report.category_name || '',
+                                      is_default: report.is_default,
+                                    });
+                                    setShowCreateReportModal(true);
+                                  }}
+                                  className="text-xs text-gray-600 hover:text-gray-800"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReportToDelete(report);
+                                    setShowDeleteReportConfirm(true);
+                                  }}
+                                  className="text-xs text-red-600 hover:text-red-800"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
+                  </div>
+                )}
 
-                    <button
-                      type="submit"
-                      disabled={uploading || (!productCSVFile && !categoryCSVFile)}
-                      className="btn-primary"
-                    >
-                      {uploading ? 'Uploading...' : 'Upload & Process Files'}
-                    </button>
-                  </form>
+                {/* Upload Tab */}
+                {selectedTab === 'upload' && (
+                  <div>
+                    <ReportSelector />
+                    {selectedReport && (
+                      <form onSubmit={handleCSVUpload} className="space-y-6">
+                        <div>
+                          <label className="label">Product Data CSV</label>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => handleCSVFileChange(e, true)}
+                            className="input-field"
+                          />
+                          {productCSVFile && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              Selected: {productCSVFile.name}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="label">Category Data CSV</label>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => handleCSVFileChange(e, false)}
+                            className="input-field"
+                          />
+                          {categoryCSVFile && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              Selected: {categoryCSVFile.name}
+                            </div>
+                          )}
+                        </div>
+
+                        {csvPreview && (
+                          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="text-sm font-semibold text-blue-900 mb-2">
+                              Preview: {csvPreview.type === 'product' ? 'Product' : 'Category'} CSV
+                            </div>
+                            <div className="text-sm text-blue-800">
+                              <div>Months: {csvPreview.months}</div>
+                              <div>Total Rows: {csvPreview.rows}</div>
+                              <div>Date Range: {csvPreview.dateRange}</div>
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={uploading || (!productCSVFile && !categoryCSVFile)}
+                          className="btn-primary"
+                        >
+                          {uploading ? 'Uploading...' : 'Upload & Process Files'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
 
                 {/* History Tab */}
                 {selectedTab === 'history' && (
                   <div>
-                    {uploadHistory.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No uploads yet for this vendor
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-gray-50">
-                              <th className="px-4 py-2 text-left font-semibold">Type</th>
-                              <th className="px-4 py-2 text-left font-semibold">File Name</th>
-                              <th className="px-4 py-2 text-left font-semibold">Rows</th>
-                              <th className="px-4 py-2 text-left font-semibold">Date Range</th>
-                              <th className="px-4 py-2 text-left font-semibold">Uploaded</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {uploadHistory.map((record, idx) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50">
-                                <td className="px-4 py-2">
-                                  <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
-                                    record.file_type === 'product'
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {record.file_type}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2 text-gray-700">{record.file_name}</td>
-                                <td className="px-4 py-2 text-gray-700">{record.row_count}</td>
-                                <td className="px-4 py-2 text-gray-700">{record.date_range}</td>
-                                <td className="px-4 py-2 text-gray-600">
-                                  {new Date(record.uploaded_at).toLocaleDateString()} at{' '}
-                                  {new Date(record.uploaded_at).toLocaleTimeString()}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                    <ReportSelector />
+                    {selectedReport && (
+                      <>
+                        {uploadHistory.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            No uploads yet for this report
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b bg-gray-50">
+                                  <th className="px-4 py-2 text-left font-semibold">Type</th>
+                                  <th className="px-4 py-2 text-left font-semibold">File Name</th>
+                                  <th className="px-4 py-2 text-left font-semibold">Rows</th>
+                                  <th className="px-4 py-2 text-left font-semibold">Date Range</th>
+                                  <th className="px-4 py-2 text-left font-semibold">Uploaded</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {uploadHistory.map((record, idx) => (
+                                  <tr key={idx} className="border-b hover:bg-gray-50">
+                                    <td className="px-4 py-2">
+                                      <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                                        record.file_type === 'product'
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {record.file_type}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-gray-700">{record.file_name}</td>
+                                    <td className="px-4 py-2 text-gray-700">{record.row_count}</td>
+                                    <td className="px-4 py-2 text-gray-700">{record.date_range}</td>
+                                    <td className="px-4 py-2 text-gray-600">
+                                      {new Date(record.uploaded_at).toLocaleDateString()} at{' '}
+                                      {new Date(record.uploaded_at).toLocaleTimeString()}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -926,147 +1123,151 @@ export default function AdminPage() {
                 {/* Title Mapping Tab */}
                 {selectedTab === 'titles' && (
                   <div>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Map each SKU to its current product and variant title. These titles override whatever was in the CSV at time of sale.
-                    </p>
+                    <ReportSelector />
+                    {selectedReport && (
+                      <>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Map each SKU to its current product and variant title. These titles override whatever was in the CSV at time of sale.
+                        </p>
 
-                    {/* Existing mappings */}
-                    {editingMappings.length > 0 && (
-                      <div className="overflow-x-auto mb-6">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-gray-50">
-                              <th className="px-3 py-2 text-left font-semibold">SKU</th>
-                              <th className="px-3 py-2 text-left font-semibold">Product Title</th>
-                              <th className="px-3 py-2 text-left font-semibold">Variant Title</th>
-                              <th className="px-3 py-2 text-left font-semibold w-20"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {editingMappings.map((mapping, idx) => (
-                              <tr key={mapping.sku} className="border-b">
-                                <td className="px-3 py-2 font-mono text-xs text-gray-700">{mapping.sku}</td>
-                                <td className="px-3 py-2">
-                                  <input
-                                    type="text"
-                                    value={mapping.product_title}
-                                    onChange={(e) => {
-                                      const updated = [...editingMappings];
-                                      updated[idx] = { ...updated[idx], product_title: e.target.value };
-                                      setEditingMappings(updated);
-                                    }}
-                                    className="input-field text-sm"
-                                  />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <input
-                                    type="text"
-                                    value={mapping.variant_title || ''}
-                                    onChange={(e) => {
-                                      const updated = [...editingMappings];
-                                      updated[idx] = { ...updated[idx], variant_title: e.target.value };
-                                      setEditingMappings(updated);
-                                    }}
-                                    className="input-field text-sm"
-                                  />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        await deleteSkuTitleMapping(selectedVendor.id, mapping.sku);
-                                        setSuccess(`Removed mapping for ${mapping.sku}`);
-                                        await loadTitleMappings(selectedVendor.id);
-                                      } catch (err) {
-                                        setError('Failed to remove mapping');
-                                      }
-                                    }}
-                                    className="text-xs text-red-600 hover:text-red-800"
-                                  >
-                                    Remove
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        <button
-                          onClick={async () => {
-                            try {
-                              setLoading(true);
-                              await saveSkuTitleMap(selectedVendor.id, editingMappings);
-                              setSuccess('Title mappings saved');
-                              await loadTitleMappings(selectedVendor.id);
-                            } catch (err) {
-                              setError('Failed to save mappings');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          disabled={loading}
-                          className="btn-primary mt-3"
-                        >
-                          {loading ? 'Saving...' : 'Save All Changes'}
-                        </button>
-                      </div>
+                        {/* Existing mappings */}
+                        {editingMappings.length > 0 && (
+                          <div className="overflow-x-auto mb-6">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b bg-gray-50">
+                                  <th className="px-3 py-2 text-left font-semibold">SKU</th>
+                                  <th className="px-3 py-2 text-left font-semibold">Product Title</th>
+                                  <th className="px-3 py-2 text-left font-semibold">Variant Title</th>
+                                  <th className="px-3 py-2 text-left font-semibold w-20"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {editingMappings.map((mapping, idx) => (
+                                  <tr key={mapping.sku} className="border-b">
+                                    <td className="px-3 py-2 font-mono text-xs text-gray-700">{mapping.sku}</td>
+                                    <td className="px-3 py-2">
+                                      <input
+                                        type="text"
+                                        value={mapping.product_title}
+                                        onChange={(e) => {
+                                          const updated = [...editingMappings];
+                                          updated[idx] = { ...updated[idx], product_title: e.target.value };
+                                          setEditingMappings(updated);
+                                        }}
+                                        className="input-field text-sm"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <input
+                                        type="text"
+                                        value={mapping.variant_title || ''}
+                                        onChange={(e) => {
+                                          const updated = [...editingMappings];
+                                          updated[idx] = { ...updated[idx], variant_title: e.target.value };
+                                          setEditingMappings(updated);
+                                        }}
+                                        className="input-field text-sm"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            await deleteSkuTitleMapping(selectedReport.id, mapping.sku);
+                                            setSuccess(`Removed mapping for ${mapping.sku}`);
+                                            await loadTitleMappings(selectedReport.id);
+                                          } catch (err) {
+                                            setError('Failed to remove mapping');
+                                          }
+                                        }}
+                                        className="text-xs text-red-600 hover:text-red-800"
+                                      >
+                                        Remove
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  setLoading(true);
+                                  await saveSkuTitleMap(selectedReport.id, editingMappings);
+                                  setSuccess('Title mappings saved');
+                                  await loadTitleMappings(selectedReport.id);
+                                } catch (err) {
+                                  setError('Failed to save mappings');
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }}
+                              disabled={loading}
+                              className="btn-primary mt-3"
+                            >
+                              {loading ? 'Saving...' : 'Save All Changes'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Upload CSV mapping */}
+                        <h3 className="text-md font-semibold mb-2 mt-4">Upload Title Mapping CSV</h3>
+                        <p className="text-xs text-gray-500 mb-3">
+                          CSV must have columns: <code className="bg-gray-100 px-1 rounded">sku</code>, <code className="bg-gray-100 px-1 rounded">product_title</code>, and optionally <code className="bg-gray-100 px-1 rounded">variant_title</code>.
+                        </p>
+                        <div className="flex items-end gap-3">
+                          <div className="flex-1">
+                            <input
+                              type="file"
+                              accept=".csv"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = async (ev) => {
+                                  try {
+                                    const Papa = (await import('papaparse')).default;
+                                    const parsed = Papa.parse(ev.target.result, {
+                                      header: true,
+                                      skipEmptyLines: true,
+                                    });
+                                    const cols = parsed.meta.fields || [];
+                                    if (!cols.includes('sku') || !cols.includes('product_title')) {
+                                      setError('CSV must have "sku" and "product_title" columns');
+                                      return;
+                                    }
+                                    const mappings = parsed.data
+                                      .filter((row) => row.sku && row.product_title)
+                                      .map((row) => ({
+                                        sku: row.sku.trim(),
+                                        product_title: row.product_title.trim(),
+                                        variant_title: (row.variant_title || '').trim() || null,
+                                      }));
+                                    if (mappings.length === 0) {
+                                      setError('No valid rows found in CSV');
+                                      return;
+                                    }
+                                    setLoading(true);
+                                    await saveSkuTitleMap(selectedReport.id, mappings);
+                                    setSuccess(`Imported ${mappings.length} title mapping(s) from CSV`);
+                                    await loadTitleMappings(selectedReport.id);
+                                    e.target.value = '';
+                                  } catch (err) {
+                                    setError('Failed to process title mapping CSV: ' + err.message);
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                };
+                                reader.readAsText(file);
+                              }}
+                              className="input-field text-sm"
+                              disabled={loading}
+                            />
+                          </div>
+                        </div>
+                      </>
                     )}
-
-                    {/* Upload CSV mapping */}
-                    <h3 className="text-md font-semibold mb-2 mt-4">Upload Title Mapping CSV</h3>
-                    <p className="text-xs text-gray-500 mb-3">
-                      CSV must have columns: <code className="bg-gray-100 px-1 rounded">sku</code>, <code className="bg-gray-100 px-1 rounded">product_title</code>, and optionally <code className="bg-gray-100 px-1 rounded">variant_title</code>.
-                    </p>
-                    <div className="flex items-end gap-3">
-                      <div className="flex-1">
-                        <input
-                          type="file"
-                          accept=".csv"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = async (ev) => {
-                              try {
-                                const Papa = (await import('papaparse')).default;
-                                const parsed = Papa.parse(ev.target.result, {
-                                  header: true,
-                                  skipEmptyLines: true,
-                                });
-                                // Validate columns
-                                const cols = parsed.meta.fields || [];
-                                if (!cols.includes('sku') || !cols.includes('product_title')) {
-                                  setError('CSV must have "sku" and "product_title" columns');
-                                  return;
-                                }
-                                const mappings = parsed.data
-                                  .filter((row) => row.sku && row.product_title)
-                                  .map((row) => ({
-                                    sku: row.sku.trim(),
-                                    product_title: row.product_title.trim(),
-                                    variant_title: (row.variant_title || '').trim() || null,
-                                  }));
-                                if (mappings.length === 0) {
-                                  setError('No valid rows found in CSV');
-                                  return;
-                                }
-                                setLoading(true);
-                                await saveSkuTitleMap(selectedVendor.id, mappings);
-                                setSuccess(`Imported ${mappings.length} title mapping(s) from CSV`);
-                                await loadTitleMappings(selectedVendor.id);
-                                e.target.value = '';
-                              } catch (err) {
-                                setError('Failed to process title mapping CSV: ' + err.message);
-                              } finally {
-                                setLoading(false);
-                              }
-                            };
-                            reader.readAsText(file);
-                          }}
-                          className="input-field text-sm"
-                          disabled={loading}
-                        />
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
@@ -1139,39 +1340,6 @@ export default function AdminPage() {
                   placeholder="Vendor access password"
                   required
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Product Name</label>
-                  <input
-                    type="text"
-                    value={formData.product_name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        product_name: e.target.value,
-                      }))
-                    }
-                    className="input-field"
-                    placeholder="e.g., SpeediCath® Flex"
-                  />
-                </div>
-                <div>
-                  <label className="label">Category Name</label>
-                  <input
-                    type="text"
-                    value={formData.category_name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        category_name: e.target.value,
-                      }))
-                    }
-                    className="input-field"
-                    placeholder="e.g., Urology"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1307,14 +1475,98 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Create/Edit Report Modal */}
+      {showCreateReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold">{editingReport ? 'Edit Report' : 'Create New Report'}</h2>
+              <button
+                onClick={() => {
+                  setShowCreateReportModal(false);
+                  setEditingReport(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveReport} className="p-6 space-y-4">
+              <div>
+                <label className="label">Report Name *</label>
+                <input
+                  type="text"
+                  value={reportFormData.name}
+                  onChange={(e) => setReportFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  className="input-field"
+                  placeholder="e.g., SpeediCath Flex"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">Product Name</label>
+                <input
+                  type="text"
+                  value={reportFormData.product_name}
+                  onChange={(e) => setReportFormData((prev) => ({ ...prev, product_name: e.target.value }))}
+                  className="input-field"
+                  placeholder="e.g., SpeediCath® Flex Hydrophilic Catheter"
+                />
+              </div>
+
+              <div>
+                <label className="label">Category Name</label>
+                <input
+                  type="text"
+                  value={reportFormData.category_name}
+                  onChange={(e) => setReportFormData((prev) => ({ ...prev, category_name: e.target.value }))}
+                  className="input-field"
+                  placeholder="e.g., Urology"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={reportFormData.is_default}
+                    onChange={(e) => setReportFormData((prev) => ({ ...prev, is_default: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm font-medium">Set as default report</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <button type="submit" disabled={loading} className="btn-primary">
+                  {loading ? 'Saving...' : editingReport ? 'Save Changes' : 'Create Report'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateReportModal(false);
+                    setEditingReport(null);
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Vendor Confirmation Modal */}
       {showDeleteConfirm && vendorToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">Delete Vendor?</h2>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete <strong>{vendorToDelete.name}</strong>? This action cannot be undone.
+                Are you sure you want to delete <strong>{vendorToDelete.name}</strong>? This will also delete all reports and data. This action cannot be undone.
               </p>
               <div className="flex gap-3">
                 <button
@@ -1328,6 +1580,38 @@ export default function AdminPage() {
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setVendorToDelete(null);
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Report Confirmation Modal */}
+      {showDeleteReportConfirm && reportToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-4">Delete Report?</h2>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <strong>{reportToDelete.name}</strong>? This will delete all data, uploads, and title mappings for this report. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeleteReport}
+                  disabled={loading}
+                  className="btn-danger flex-1"
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteReportConfirm(false);
+                    setReportToDelete(null);
                   }}
                   className="btn-secondary flex-1"
                 >
