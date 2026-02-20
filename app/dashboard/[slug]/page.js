@@ -180,8 +180,32 @@ const TabNavigation = ({ tabs, activeTab, setActiveTab }) => (
   </div>
 );
 
-// Data table component
-const DataTable = ({ columns, rows, className = '' }) => {
+// Helper: parse display value for sorting (extract number from formatted strings)
+const parseSortValue = (value) => {
+  if (value === null || value === undefined || value === '—') return -Infinity;
+  if (typeof value === 'number') return value;
+  const str = String(value);
+  // Currency: $1,234 or $1,234.56
+  const currency = str.replace(/[$,CAD\s]/g, '');
+  if (/^-?\d+(\.\d+)?$/.test(currency) && str.includes('$')) return parseFloat(currency);
+  // Percentage: +12.3% or -5.0% or 12%
+  const pctMatch = str.match(/^([+-]?\d+(\.\d+)?)%$/);
+  if (pctMatch) return parseFloat(pctMatch[1]);
+  // Plain number with commas: 1,234
+  const plain = str.replace(/,/g, '');
+  if (/^-?\d+(\.\d+)?$/.test(plain)) return parseFloat(plain);
+  // Fallback: string comparison
+  return str.toLowerCase();
+};
+
+// Data table component with sorting and group-by-product
+const DataTable = ({ columns, rows, className = '', enableGrouping = false }) => {
+  const [sortCol, setSortCol] = React.useState(null);
+  const [sortDir, setSortDir] = React.useState('asc');
+  const [groupByProduct, setGroupByProduct] = React.useState(false);
+
+  const hasProductColumn = columns.includes('Product');
+
   const getCellClass = (col, value) => {
     if (typeof value !== 'string') return 'text-slate-700';
     if (col.toLowerCase().includes('change') || col.toLowerCase().includes('share')) {
@@ -191,34 +215,105 @@ const DataTable = ({ columns, rows, className = '' }) => {
     return 'text-slate-700';
   };
 
+  const handleSort = (col) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  // Sort rows
+  const sortedRows = React.useMemo(() => {
+    if (!sortCol) return rows;
+    return [...rows].sort((a, b) => {
+      const aVal = parseSortValue(a[sortCol]);
+      const bVal = parseSortValue(b[sortCol]);
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      if (typeof aVal === 'string') return 1;
+      if (typeof bVal === 'string') return -1;
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  // Group rows by product
+  const groupedData = React.useMemo(() => {
+    if (!groupByProduct || !hasProductColumn) return null;
+    const groups = {};
+    sortedRows.forEach((row) => {
+      const product = row['Product'] || 'Other';
+      if (!groups[product]) groups[product] = [];
+      groups[product].push(row);
+    });
+    return groups;
+  }, [sortedRows, groupByProduct, hasProductColumn]);
+
+  const sortArrow = (col) => {
+    if (sortCol !== col) return <span className="text-slate-300 ml-1">↕</span>;
+    return <span className="text-blue-600 ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>;
+  };
+
+  const renderRow = (row, idx, bgOffset = 0) => (
+    <tr
+      key={idx}
+      className={`border-b border-slate-100 ${(idx + bgOffset) % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+    >
+      {columns.map((col) => (
+        <td key={`${idx}-${col}`} className={`px-4 py-3 ${getCellClass(col, row[col])}`}>
+          {row[col] ?? '—'}
+        </td>
+      ))}
+    </tr>
+  );
+
   return (
     <div className="overflow-x-auto card">
+      {(enableGrouping || hasProductColumn) && hasProductColumn && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-slate-50">
+          <button
+            onClick={() => setGroupByProduct(!groupByProduct)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+              groupByProduct
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'
+            }`}
+          >
+            {groupByProduct ? '✓ Grouped by Product' : 'Group by Product'}
+          </button>
+        </div>
+      )}
       <table className={`w-full text-sm ${className}`}>
         <thead>
           <tr className="bg-slate-50 border-b-2 border-slate-200">
             {columns.map((col) => (
               <th
                 key={col}
-                className="px-4 py-3 text-left font-bold text-slate-900 whitespace-nowrap"
+                onClick={() => handleSort(col)}
+                className="px-4 py-3 text-left font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors"
               >
-                {col}
+                {col}{sortArrow(col)}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, idx) => (
-            <tr
-              key={idx}
-              className={`border-b border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-            >
-              {columns.map((col) => (
-                <td key={`${idx}-${col}`} className={`px-4 py-3 ${getCellClass(col, row[col])}`}>
-                  {row[col] ?? '—'}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {groupedData ? (
+            Object.entries(groupedData).map(([product, groupRows]) => (
+              <React.Fragment key={product}>
+                <tr className="bg-blue-50 border-b border-blue-200">
+                  <td colSpan={columns.length} className="px-4 py-2 font-semibold text-blue-900 text-sm">
+                    {product} <span className="text-blue-500 font-normal">({groupRows.length} {groupRows.length === 1 ? 'variant' : 'variants'})</span>
+                  </td>
+                </tr>
+                {groupRows.map((row, idx) => renderRow(row, idx))}
+              </React.Fragment>
+            ))
+          ) : (
+            sortedRows.map((row, idx) => renderRow(row, idx))
+          )}
         </tbody>
       </table>
     </div>
