@@ -44,7 +44,6 @@ export default function AdminPage() {
     show_budget: false,
     campaign_start: '',
     campaign_end: '',
-    sku_map: '{}',
     notes: '',
   });
 
@@ -150,14 +149,6 @@ export default function AdminPage() {
         return;
       }
 
-      // Validate JSON for sku_map
-      try {
-        JSON.parse(formData.sku_map || '{}');
-      } catch {
-        setError('SKU map must be valid JSON');
-        return;
-      }
-
       setLoading(true);
 
       // Sanitize data — convert empty strings to null for optional fields
@@ -169,7 +160,6 @@ export default function AdminPage() {
         product_name: formData.product_name || null,
         category_name: formData.category_name || null,
         notes: formData.notes || null,
-        sku_map: formData.sku_map || '{}',
       };
 
       if (selectedVendor?.id) {
@@ -190,7 +180,6 @@ export default function AdminPage() {
           show_budget: false,
           campaign_start: '',
           campaign_end: '',
-          sku_map: '{}',
           notes: '',
         });
         setShowCreateModal(false);
@@ -246,8 +235,7 @@ export default function AdminPage() {
       // Process product CSV if provided
       if (productCSVFile) {
         const productText = await productCSVFile.text();
-        const skuMap = JSON.parse(formData.sku_map || '{}');
-        const productData = parseProductCSV(productText, skuMap);
+        const productData = parseProductCSV(productText);
 
         // Save product data
         await saveProductData(selectedVendor.id, productData.monthlyData);
@@ -315,8 +303,7 @@ export default function AdminPage() {
       try {
         const csvText = e.target?.result;
         if (isProduct && productCSVFile) {
-          const skuMap = JSON.parse(formData.sku_map || '{}');
-          const parsed = parseProductCSV(csvText, skuMap);
+          const parsed = parseProductCSV(csvText);
           setCSVPreview({
             type: 'product',
             months: parsed.monthlyData?.length || 0,
@@ -405,8 +392,7 @@ export default function AdminPage() {
                       show_budget: false,
                       campaign_start: '',
                       campaign_end: '',
-                      sku_map: '{}',
-                      notes: '',
+                                  notes: '',
                     });
                   }}
                   className="btn-primary text-sm"
@@ -635,21 +621,6 @@ export default function AdminPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="label">SKU Map (JSON)</label>
-                      <textarea
-                        value={formData.sku_map}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            sku_map: e.target.value,
-                          }))
-                        }
-                        className="input-field font-mono text-sm"
-                        rows={4}
-                        placeholder='{"COL 28920": "10 FR", "COL 28922": "12 FR"}'
-                      />
-                    </div>
 
                     <div>
                       <label className="label">Notes</label>
@@ -959,22 +930,6 @@ export default function AdminPage() {
                     <span className="text-sm font-medium">Show Budget on Dashboard</span>
                   </label>
                 </div>
-              </div>
-
-              <div>
-                <label className="label">SKU Map (JSON)</label>
-                <textarea
-                  value={formData.sku_map}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      sku_map: e.target.value,
-                    }))
-                  }
-                  className="input-field font-mono text-sm"
-                  rows={3}
-                  placeholder='{"COL 28920": "10 FR", "COL 28922": "12 FR"}'
-                />
               </div>
 
               <div>
