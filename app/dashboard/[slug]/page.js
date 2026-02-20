@@ -141,7 +141,7 @@ const KPICard = ({ title, value, previousValue, isPercentage = false, isCurrency
       </div>
       {previousValue !== undefined && (
         <div className="text-xs text-slate-500 mt-2">
-          Previous: {isCurrency ? formatCurrency(previousValue) : isPercentage ? `${previousValue.toLocaleString()}%` : previousValue.toLocaleString()}
+          Previous Year: {isCurrency ? formatCurrency(previousValue) : isPercentage ? `${previousValue.toLocaleString()}%` : previousValue.toLocaleString()}
         </div>
       )}
     </div>
@@ -1656,15 +1656,17 @@ export default function VendorDashboard() {
       </div>
 
       {/* PDF Export Button */}
-      <div className="sticky bottom-8 right-8 z-40">
-        <button
-          onClick={handleExportPDF}
-          disabled={exporting}
-          className="btn-primary px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-shadow"
-        >
-          {exporting ? 'Exporting...' : '📥 Export to PDF'}
-        </button>
-      </div>
+      {!vendor?.hide_pdf_export && (
+        <div className="sticky bottom-8 right-8 z-40">
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="btn-primary px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+          >
+            {exporting ? 'Exporting...' : '📥 Export to PDF'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

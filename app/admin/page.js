@@ -65,6 +65,7 @@ export default function AdminPage() {
     password: '',
     monthly_budget: '',
     show_budget: false,
+    hide_pdf_export: false,
     campaign_start: '',
     campaign_end: '',
     notes: '',
@@ -406,6 +407,7 @@ export default function AdminPage() {
           password: '',
           monthly_budget: '',
           show_budget: false,
+          hide_pdf_export: false,
           campaign_start: '',
           campaign_end: '',
           notes: '',
@@ -848,6 +850,7 @@ export default function AdminPage() {
                       password: '',
                       monthly_budget: '',
                       show_budget: false,
+                      hide_pdf_export: false,
                       campaign_start: '',
                       campaign_end: '',
                       notes: '',
@@ -1014,19 +1017,39 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="label">Show Budget on Dashboard</label>
-                      <input
-                        type="checkbox"
-                        checked={formData.show_budget}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            show_budget: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.show_budget}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                show_budget: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm font-medium">Show Budget on Dashboard</span>
+                        </label>
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.hide_pdf_export}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                hide_pdf_export: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm font-medium">Hide Export to PDF</span>
+                        </label>
+                      </div>
                     </div>
 
                     <div>
