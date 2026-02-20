@@ -178,38 +178,49 @@ const TabNavigation = ({ tabs, activeTab, setActiveTab }) => (
 );
 
 // Data table component
-const DataTable = ({ columns, rows, className = '' }) => (
-  <div className="overflow-x-auto card">
-    <table className={`w-full text-sm ${className}`}>
-      <thead>
-        <tr className="bg-slate-50 border-b-2 border-slate-200">
-          {columns.map((col) => (
-            <th
-              key={col}
-              className="px-4 py-3 text-left font-bold text-slate-900 whitespace-nowrap"
-            >
-              {col}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, idx) => (
-          <tr
-            key={idx}
-            className={`border-b border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-          >
+const DataTable = ({ columns, rows, className = '' }) => {
+  const getCellClass = (col, value) => {
+    if (typeof value !== 'string') return 'text-slate-700';
+    if (col.toLowerCase().includes('change') || col.toLowerCase().includes('share')) {
+      if (value.startsWith('+') && value !== '+0.0%') return 'text-emerald-600 font-semibold';
+      if (value.startsWith('-')) return 'text-red-600 font-semibold';
+    }
+    return 'text-slate-700';
+  };
+
+  return (
+    <div className="overflow-x-auto card">
+      <table className={`w-full text-sm ${className}`}>
+        <thead>
+          <tr className="bg-slate-50 border-b-2 border-slate-200">
             {columns.map((col) => (
-              <td key={`${idx}-${col}`} className="px-4 py-3 text-slate-700">
-                {row[col] ?? '—'}
-              </td>
+              <th
+                key={col}
+                className="px-4 py-3 text-left font-bold text-slate-900 whitespace-nowrap"
+              >
+                {col}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr
+              key={idx}
+              className={`border-b border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+            >
+              {columns.map((col) => (
+                <td key={`${idx}-${col}`} className={`px-4 py-3 ${getCellClass(col, row[col])}`}>
+                  {row[col] ?? '—'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 // Main dashboard component
 export default function VendorDashboard() {
