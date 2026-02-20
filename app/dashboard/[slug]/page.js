@@ -1183,9 +1183,16 @@ export default function VendorDashboard() {
                     const daysInMonth = getDaysInMonth(month);
                     return (
                     <details key={`sales-${month}`} className="mb-6" open>
-                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none flex items-center gap-2">
-                        <span className="text-slate-400 inline-block transition-transform">▶</span>
-                        {formatMonthTitle(month)} Results
+                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 inline-block transition-transform">▶</span>
+                          <span>{formatMonthTitle(month)} Results</span>
+                          <span className="ml-auto flex gap-4 text-xs font-normal text-slate-500 collapsed-stats">
+                            <span>Total: <span className="font-semibold text-slate-700">{formatCurrency(totalCurrent)}</span></span>
+                            <span>Avg Daily: <span className="font-semibold text-slate-700">{formatCurrency(totalCurrent / daysInMonth)}</span></span>
+                            <span className={`font-semibold ${totalCurrent >= totalPrior ? 'text-emerald-600' : 'text-red-600'}`}>{formatPercent(totalCurrent, totalPrior)}</span>
+                          </span>
+                        </div>
                       </summary>
                       <div className="mt-2">
                       <DataTable
@@ -1222,9 +1229,16 @@ export default function VendorDashboard() {
                     const daysInMonth = getDaysInMonth(month);
                     return (
                     <details key={`units-${month}`} className="mb-6" open>
-                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none flex items-center gap-2">
-                        <span className="text-slate-400 inline-block transition-transform">▶</span>
-                        {formatMonthTitle(month)} Results
+                      <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 inline-block transition-transform">▶</span>
+                          <span>{formatMonthTitle(month)} Results</span>
+                          <span className="ml-auto flex gap-4 text-xs font-normal text-slate-500 collapsed-stats">
+                            <span>Total: <span className="font-semibold text-slate-700">{totalCurrentUnits.toLocaleString()} units</span></span>
+                            <span>Avg Daily: <span className="font-semibold text-slate-700">{(totalCurrentUnits / daysInMonth).toFixed(1)} units</span></span>
+                            <span className={`font-semibold ${totalCurrentUnits >= totalPriorUnits ? 'text-emerald-600' : 'text-red-600'}`}>{formatPercent(totalCurrentUnits, totalPriorUnits)}</span>
+                          </span>
+                        </div>
                       </summary>
                       <div className="mt-2">
                       <DataTable
@@ -1272,9 +1286,16 @@ export default function VendorDashboard() {
 
                         return (
                           <details key={month} className="mb-8" open>
-                            <summary className="text-lg font-bold text-slate-900 mb-3 cursor-pointer hover:text-slate-700 select-none list-none flex items-center gap-2">
-                              <span className="text-slate-400 inline-block transition-transform">▶</span>
-                              {formatMonthTitle(month)} vs {formatMonthTitle(prevMonth)} (Previous Period)
+                            <summary className="text-lg font-bold text-slate-900 mb-3 cursor-pointer hover:text-slate-700 select-none list-none">
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 inline-block transition-transform">▶</span>
+                                <span>{formatMonthTitle(month)} vs {formatMonthTitle(prevMonth)} (Previous Period)</span>
+                                <span className="ml-auto flex gap-4 text-xs font-normal text-slate-500 collapsed-stats">
+                                  <span>Total: <span className="font-semibold text-slate-700">{formatCurrency(totalCurrentSales)}</span></span>
+                                  <span>Avg Daily: <span className="font-semibold text-slate-700">{formatCurrency(totalCurrentSales / daysInCurrent)}</span></span>
+                                  <span className={`font-semibold ${totalCurrentSales >= totalPriorSales ? 'text-emerald-600' : 'text-red-600'}`}>{formatPercent(totalCurrentSales, totalPriorSales)}</span>
+                                </span>
+                              </div>
                             </summary>
                             <div className="mt-3">
 

@@ -73,6 +73,15 @@ details[open] > summary .inline-block {
   transform: rotate(90deg);
 }
 
+details[open] > summary .collapsed-stats {
+  opacity: 0.4;
+  font-size: 0.65rem;
+}
+
+details:not([open]) > summary .collapsed-stats {
+  opacity: 1;
+}
+
 /* Chart container */
 .chart-container {
   position: relative;
