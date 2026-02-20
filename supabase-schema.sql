@@ -31,6 +31,8 @@ CREATE TABLE monthly_product_data (
   month TEXT NOT NULL,
   sku TEXT NOT NULL,
   sku_label TEXT,
+  product_title TEXT,
+  variant_title TEXT,
   total_sales NUMERIC(12,2) DEFAULT 0,
   net_items INTEGER DEFAULT 0,
   new_customers INTEGER DEFAULT 0,

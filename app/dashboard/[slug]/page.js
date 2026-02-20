@@ -339,7 +339,11 @@ export default function VendorDashboard() {
             returningCustomers,
             prevTotalSales,
             prevNetItems,
+            prevNewCustomers,
+            prevReturningCustomers,
             skuLabel: row.sku_label || sku,
+            productTitle: row.product_title || '',
+            variantTitle: row.variant_title || '',
           };
 
           restructuredTotals[month].totalSales += totalSales;
@@ -956,11 +960,12 @@ export default function VendorDashboard() {
                     <div key={`sales-${month}`} className="mb-6">
                       <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
                       <DataTable
-                        columns={['SKU', 'Current Sales', 'Prior Year Sales', 'Change %']}
+                        columns={['Product', 'Variant', 'Current Sales', 'Prior Year Sales', 'Change %']}
                         rows={Object.keys(monthlySkuData[month] || {}).map((sku) => {
                           const data = monthlySkuData[month][sku];
                           return {
-                            'SKU': data.skuLabel,
+                            'Product': data.productTitle || data.skuLabel,
+                            'Variant': data.variantTitle && data.variantTitle.toLowerCase() !== 'default title' ? data.variantTitle : '—',
                             'Current Sales': formatCurrency(data.totalSales),
                             'Prior Year Sales': formatCurrency(data.prevTotalSales),
                             'Change %': formatPercent(data.totalSales, data.prevTotalSales),
@@ -978,11 +983,12 @@ export default function VendorDashboard() {
                     <div key={`units-${month}`} className="mb-6">
                       <h4 className="text-md font-semibold text-slate-700 mb-2">{month}</h4>
                       <DataTable
-                        columns={['SKU', 'Current Units', 'Prior Year Units', 'Change %']}
+                        columns={['Product', 'Variant', 'Current Units', 'Prior Year Units', 'Change %']}
                         rows={Object.keys(monthlySkuData[month] || {}).map((sku) => {
                           const data = monthlySkuData[month][sku];
                           return {
-                            'SKU': data.skuLabel,
+                            'Product': data.productTitle || data.skuLabel,
+                            'Variant': data.variantTitle && data.variantTitle.toLowerCase() !== 'default title' ? data.variantTitle : '—',
                             'Current Units': data.netItems.toLocaleString(),
                             'Prior Year Units': (data.prevNetItems || 0).toLocaleString(),
                             'Change %': formatPercent(data.netItems, data.prevNetItems || 0),
@@ -1016,14 +1022,15 @@ export default function VendorDashboard() {
                               Sales Comparison
                             </h4>
                             <DataTable
-                              columns={['SKU Label', 'Current Month', 'Prior Month', 'Change %']}
+                              columns={['Product', 'Variant', 'Current Month', 'Prior Month', 'Change %']}
                               rows={Object.keys(
                                 monthlySkuData[month] || {}
                               ).map((sku) => {
                                 const currentData = monthlySkuData[month][sku];
                                 const priorData = monthlySkuData[prevMonth][sku];
                                 return {
-                                  'SKU Label': currentData.skuLabel,
+                                  'Product': currentData.productTitle || currentData.skuLabel,
+                                  'Variant': currentData.variantTitle && currentData.variantTitle.toLowerCase() !== 'default title' ? currentData.variantTitle : '—',
                                   'Current Month': formatCurrency(
                                     currentData.totalSales
                                   ),
@@ -1043,14 +1050,15 @@ export default function VendorDashboard() {
                               Units Sold Comparison
                             </h4>
                             <DataTable
-                              columns={['SKU Label', 'Current Month', 'Prior Month', 'Change %']}
+                              columns={['Product', 'Variant', 'Current Month', 'Prior Month', 'Change %']}
                               rows={Object.keys(
                                 monthlySkuData[month] || {}
                               ).map((sku) => {
                                 const currentData = monthlySkuData[month][sku];
                                 const priorData = monthlySkuData[prevMonth][sku];
                                 return {
-                                  'SKU Label': currentData.skuLabel,
+                                  'Product': currentData.productTitle || currentData.skuLabel,
+                                  'Variant': currentData.variantTitle && currentData.variantTitle.toLowerCase() !== 'default title' ? currentData.variantTitle : '—',
                                   'Current Month':
                                     currentData.netItems.toLocaleString(),
                                   'Prior Month': priorData.netItems.toLocaleString(),
