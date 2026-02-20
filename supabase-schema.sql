@@ -54,6 +54,23 @@ CREATE TABLE monthly_category_data (
   UNIQUE(vendor_id, month)
 );
 
+-- Daily product data (raw daily totals from CSV for daily chart view)
+CREATE TABLE daily_product_data (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  day DATE NOT NULL,
+  total_sales NUMERIC(12,2) DEFAULT 0,
+  net_items INTEGER DEFAULT 0,
+  new_customers INTEGER DEFAULT 0,
+  returning_customers INTEGER DEFAULT 0,
+  prev_total_sales NUMERIC(12,2) DEFAULT 0,
+  prev_net_items INTEGER DEFAULT 0,
+  prev_new_customers INTEGER DEFAULT 0,
+  prev_returning_customers INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(vendor_id, day)
+);
+
 -- Upload history
 CREATE TABLE upload_history (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -70,15 +87,19 @@ CREATE INDEX idx_product_data_vendor ON monthly_product_data(vendor_id);
 CREATE INDEX idx_product_data_month ON monthly_product_data(month);
 CREATE INDEX idx_category_data_vendor ON monthly_category_data(vendor_id);
 CREATE INDEX idx_category_data_month ON monthly_category_data(month);
+CREATE INDEX idx_daily_product_data_vendor ON daily_product_data(vendor_id);
+CREATE INDEX idx_daily_product_data_day ON daily_product_data(day);
 
 -- Row Level Security (optional - enable if needed)
 ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_category_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_history ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow all access via service role (API routes use anon key with these policies)
 CREATE POLICY "Allow all for anon" ON vendors FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON monthly_product_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON monthly_category_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON daily_product_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON upload_history FOR ALL USING (true) WITH CHECK (true);

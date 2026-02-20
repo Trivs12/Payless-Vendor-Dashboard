@@ -8,6 +8,7 @@ import {
   updateVendor,
   deleteVendor,
   saveProductData,
+  saveDailyProductData,
   saveCategoryData,
   saveUploadHistory,
   getUploadHistory,
@@ -237,8 +238,13 @@ export default function AdminPage() {
         const productText = await productCSVFile.text();
         const productData = parseProductCSV(productText);
 
-        // Save product data - parseProductCSV returns { monthlySkuData, monthlyTotals, months, targetSkus }
+        // Save product data - parseProductCSV returns { monthlySkuData, monthlyTotals, dailyTotals, months, targetSkus }
         await saveProductData(selectedVendor.id, productData.monthlySkuData);
+
+        // Save daily data for daily chart view
+        if (productData.dailyTotals && Object.keys(productData.dailyTotals).length > 0) {
+          await saveDailyProductData(selectedVendor.id, productData.dailyTotals);
+        }
 
         // Save upload history
         const months = productData.months || [];

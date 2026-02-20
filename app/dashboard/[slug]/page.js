@@ -19,6 +19,7 @@ import {
   getVendorBySlug,
   getProductData,
   getCategoryData,
+  getDailyProductData,
 } from '@/lib/supabase';
 import {
   calculateYoY,
@@ -228,6 +229,8 @@ export default function VendorDashboard() {
   const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [filteredMonths, setFilteredMonths] = useState([]);
   const [exporting, setExporting] = useState(false);
+  const [dailyData, setDailyData] = useState({});
+  const [chartView, setChartView] = useState('month'); // 'month' or 'day'
 
   // Auth check and data loading
   useEffect(() => {
@@ -258,9 +261,10 @@ export default function VendorDashboard() {
         }
         setVendor(vendorData);
 
-        // Load product and category data
+        // Load product, category, and daily data
         const productRows = await getProductData(vendorId);
         const categoryRows = await getCategoryData(vendorId);
+        const dailyRows = await getDailyProductData(vendorId);
 
         if (!productRows || productRows.length === 0) {
           setMonthlySkuData({});
@@ -365,9 +369,26 @@ export default function VendorDashboard() {
           restructuredCategoryData[month].prevTotalSales = parseFloat(row.prev_total_sales) || 0;
         });
 
+        // Restructure daily data
+        const restructuredDailyData = {};
+        dailyRows.forEach((row) => {
+          const day = row.day; // YYYY-MM-DD string
+          restructuredDailyData[day] = {
+            totalSales: parseFloat(row.total_sales) || 0,
+            netItems: parseInt(row.net_items) || 0,
+            newCustomers: parseInt(row.new_customers) || 0,
+            returningCustomers: parseInt(row.returning_customers) || 0,
+            prevTotalSales: parseFloat(row.prev_total_sales) || 0,
+            prevNetItems: parseInt(row.prev_net_items) || 0,
+            prevNewCustomers: parseInt(row.prev_new_customers) || 0,
+            prevReturningCustomers: parseInt(row.prev_returning_customers) || 0,
+          };
+        });
+
         setMonthlySkuData(restructuredSkuData);
         setMonthlyTotals(restructuredTotals);
         setCategoryMonthly(restructuredCategoryData);
+        setDailyData(restructuredDailyData);
         setMonths(monthsList);
         setFilteredMonths(monthsList);
         setDateRange({ start: monthsList[0], end: monthsList[monthsList.length - 1] });
@@ -668,67 +689,174 @@ export default function VendorDashboard() {
                 <div>
                   <InsightBox insights={yoyInsights} />
 
-                  {/* YoY Sales Line Chart */}
+                  {/* YoY Sales Line Chart with Month/Day Toggle */}
                   <div className="card mb-6">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">
-                      Sales Comparison by Month
-                    </h3>
-                    <Line
-                      data={{
-                        labels: filteredMonths,
-                        datasets: [
-                          {
-                            label: 'Current Year',
-                            data: filteredMonths.map(
-                              (m) => monthlyTotals[m]?.totalSales || 0
-                            ),
-                            borderColor: BRAND_COLORS.current,
-                            backgroundColor: `${BRAND_COLORS.current}20`,
-                            borderWidth: 3,
-                            pointRadius: 6,
-                            pointBackgroundColor: BRAND_COLORS.current,
-                            fill: true,
-                            tension: 0.3,
-                          },
-                          {
-                            label: 'Prior Year',
-                            data: filteredMonths.map(
-                              (m) => monthlyTotals[m]?.prevTotalSales || 0
-                            ),
-                            borderColor: BRAND_COLORS.previous,
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [8, 4],
-                            pointRadius: 5,
-                            pointBackgroundColor: BRAND_COLORS.previous,
-                            pointStyle: 'circle',
-                            fill: false,
-                            tension: 0.3,
-                          },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        plugins: {
-                          legend: {
-                            position: 'top',
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-slate-900">
+                        Sales Comparison {chartView === 'month' ? 'by Month' : 'by Day'}
+                      </h3>
+                      <div className="flex bg-slate-100 rounded-lg p-1">
+                        <button
+                          onClick={() => setChartView('month')}
+                          className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                            chartView === 'month'
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          Month
+                        </button>
+                        <button
+                          onClick={() => setChartView('day')}
+                          disabled={Object.keys(dailyData).length === 0}
+                          className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                            chartView === 'day'
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-slate-600 hover:text-slate-900'
+                          } ${Object.keys(dailyData).length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          Day
+                        </button>
+                      </div>
+                    </div>
+                    {chartView === 'month' ? (
+                      <Line
+                        data={{
+                          labels: filteredMonths,
+                          datasets: [
+                            {
+                              label: 'Current Year',
+                              data: filteredMonths.map(
+                                (m) => monthlyTotals[m]?.totalSales || 0
+                              ),
+                              borderColor: BRAND_COLORS.current,
+                              backgroundColor: `${BRAND_COLORS.current}20`,
+                              borderWidth: 3,
+                              pointRadius: 6,
+                              pointBackgroundColor: BRAND_COLORS.current,
+                              fill: true,
+                              tension: 0.3,
+                            },
+                            {
+                              label: 'Prior Year',
+                              data: filteredMonths.map(
+                                (m) => monthlyTotals[m]?.prevTotalSales || 0
+                              ),
+                              borderColor: BRAND_COLORS.previous,
+                              backgroundColor: 'transparent',
+                              borderWidth: 2,
+                              borderDash: [8, 4],
+                              pointRadius: 5,
+                              pointBackgroundColor: BRAND_COLORS.previous,
+                              pointStyle: 'circle',
+                              fill: false,
+                              tension: 0.3,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          plugins: {
+                            legend: {
+                              position: 'top',
+                            },
+                            tooltip: {
+                              callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                              },
                             },
                           },
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                            ticks: {
-                              callback: (value) => formatCurrency(value),
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              ticks: {
+                                callback: (value) => formatCurrency(value),
+                              },
                             },
                           },
-                        },
-                      }}
-                    />
+                        }}
+                      />
+                    ) : (
+                      (() => {
+                        // Filter daily data to days within the selected month range
+                        const filteredDays = Object.keys(dailyData)
+                          .filter((day) => {
+                            const dayMonth = day.substring(0, 7); // YYYY-MM
+                            return filteredMonths.includes(dayMonth);
+                          })
+                          .sort();
+                        // Format labels as MMM DD (e.g., Jan 15)
+                        const dayLabels = filteredDays.map((d) => {
+                          const date = new Date(d + 'T00:00:00');
+                          return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+                        });
+                        return (
+                          <Line
+                            data={{
+                              labels: dayLabels,
+                              datasets: [
+                                {
+                                  label: 'Current Year',
+                                  data: filteredDays.map((d) => dailyData[d]?.totalSales || 0),
+                                  borderColor: BRAND_COLORS.current,
+                                  backgroundColor: `${BRAND_COLORS.current}10`,
+                                  borderWidth: 2,
+                                  pointRadius: filteredDays.length > 60 ? 0 : 3,
+                                  pointHoverRadius: 5,
+                                  fill: true,
+                                  tension: 0.3,
+                                },
+                                {
+                                  label: 'Prior Year',
+                                  data: filteredDays.map((d) => dailyData[d]?.prevTotalSales || 0),
+                                  borderColor: BRAND_COLORS.previous,
+                                  backgroundColor: 'transparent',
+                                  borderWidth: 1.5,
+                                  borderDash: [6, 3],
+                                  pointRadius: filteredDays.length > 60 ? 0 : 2,
+                                  pointHoverRadius: 4,
+                                  fill: false,
+                                  tension: 0.3,
+                                },
+                              ],
+                            }}
+                            options={{
+                              responsive: true,
+                              plugins: {
+                                legend: {
+                                  position: 'top',
+                                },
+                                tooltip: {
+                                  callbacks: {
+                                    title: (items) => filteredDays[items[0].dataIndex] || '',
+                                    label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                                  },
+                                },
+                              },
+                              scales: {
+                                x: {
+                                  ticks: {
+                                    maxTicksLimit: 15,
+                                    maxRotation: 45,
+                                  },
+                                },
+                                y: {
+                                  beginAtZero: true,
+                                  ticks: {
+                                    callback: (value) => formatCurrency(value),
+                                  },
+                                },
+                              },
+                            }}
+                          />
+                        );
+                      })()
+                    )}
+                    {chartView === 'day' && Object.keys(dailyData).length === 0 && (
+                      <p className="text-sm text-slate-500 mt-2 text-center">
+                        Daily data not available. Re-upload the CSV to enable daily view.
+                      </p>
+                    )}
                   </div>
 
                   {/* Sales by SKU - Separate table per month */}
