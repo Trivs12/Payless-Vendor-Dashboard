@@ -267,11 +267,13 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
   // Build subtotal row for a group of rows
   const buildSubtotalRow = (groupRows) => {
     const subtotal = {};
+    const colSums = {};
+    // First pass: sum all numeric columns
     columns.forEach((col) => {
       if (col === 'Product') { subtotal[col] = 'Subtotal'; return; }
       if (col === 'SKU' || col === 'Variant') { subtotal[col] = ''; return; }
       const isPctCol = col.toLowerCase().includes('change') || col.toLowerCase().includes('share');
-      if (isPctCol) { subtotal[col] = ''; return; }
+      if (isPctCol) { subtotal[col] = ''; return; } // filled in second pass
       let sum = 0;
       let hasNumbers = false;
       let isCurrencyCol = false;
@@ -283,10 +285,21 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
           if (String(row[col]).includes('$')) isCurrencyCol = true;
         }
       });
+      colSums[col] = sum;
       if (hasNumbers) {
         subtotal[col] = isCurrencyCol ? formatCurrency(sum) : sum.toLocaleString();
       } else {
         subtotal[col] = '';
+      }
+    });
+    // Second pass: compute Change % from current/prior sums
+    columns.forEach((col) => {
+      if (!col.toLowerCase().includes('change')) return;
+      // Find the current and prior columns by name pattern
+      const currentCol = columns.find((c) => c.match(/^current/i) && !c.toLowerCase().includes('change'));
+      const priorCol = columns.find((c) => c.match(/^prior/i) && !c.toLowerCase().includes('change'));
+      if (currentCol && priorCol && colSums[currentCol] !== undefined && colSums[priorCol] !== undefined) {
+        subtotal[col] = formatPercent(colSums[currentCol], colSums[priorCol]);
       }
     });
     return subtotal;
@@ -294,11 +307,19 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
 
   const renderSubtotalRow = (subtotal, key) => (
     <tr key={key} className="bg-blue-100/50 border-b-2 border-blue-200 font-semibold">
-      {columns.map((col) => (
-        <td key={`sub-${key}-${col}`} className="px-4 py-2 text-sm text-blue-900">
-          {subtotal[col] ?? ''}
-        </td>
-      ))}
+      {columns.map((col) => {
+        const val = subtotal[col] ?? '';
+        let colorClass = 'text-blue-900';
+        if (col.toLowerCase().includes('change') && typeof val === 'string') {
+          if (val.startsWith('+') && val !== '+0.0%') colorClass = 'text-emerald-600';
+          else if (val.startsWith('-')) colorClass = 'text-red-600';
+        }
+        return (
+          <td key={`sub-${key}-${col}`} className={`px-4 py-2 text-sm ${colorClass}`}>
+            {val}
+          </td>
+        );
+      })}
     </tr>
   );
 
