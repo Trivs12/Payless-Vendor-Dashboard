@@ -271,7 +271,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
     const colSums = {};
     // First pass: sum all numeric columns
     columns.forEach((col) => {
-      if (col === 'Product') { subtotal[col] = 'Subtotal'; return; }
+      if (col === 'Product') { subtotal[col] = ''; return; }
       if (col === 'SKU' || col === 'Variant') { subtotal[col] = ''; return; }
       const isPctCol = col.toLowerCase().includes('change') || col.toLowerCase().includes('share');
       if (isPctCol) { subtotal[col] = ''; return; } // filled in second pass
@@ -384,17 +384,20 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
                     className="bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
                     onClick={toggleCollapse}
                   >
-                    {columns.map((col, colIdx) => {
-                      if (colIdx === 0) {
+                    {columns.map((col) => {
+                      if (col === 'Product') {
                         return (
-                          <td key={`gh-${product}-${col}`} className="px-4 py-2 font-semibold text-blue-900 text-sm whitespace-nowrap">
+                          <td key={`gh-${product}-${col}`} className="px-4 py-2 font-semibold text-blue-900 text-sm">
                             <span className={`inline-block transition-transform mr-2 text-blue-400 ${isCollapsed ? '' : 'rotate-90'}`}>▶</span>
                             {product}
-                            <span className="text-blue-500 font-normal ml-2">({groupRows.length} {groupRows.length === 1 ? 'variant' : 'variants'})</span>
+                            <span className="text-blue-500 font-normal ml-2">({groupRows.length})</span>
                           </td>
                         );
                       }
-                      if (subtotal && col !== 'SKU' && col !== 'Variant') {
+                      if (col === 'SKU' || col === 'Variant') {
+                        return <td key={`gh-${product}-${col}`} className="px-4 py-2 text-sm text-blue-900">{''}</td>;
+                      }
+                      if (subtotal) {
                         const val = subtotal[col] ?? '';
                         let colorClass = 'text-blue-900 font-semibold';
                         if (col.toLowerCase().includes('change') && typeof val === 'string') {
