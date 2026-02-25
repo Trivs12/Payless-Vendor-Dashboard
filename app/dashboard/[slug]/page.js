@@ -220,13 +220,28 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
 
   const hasProductColumn = columns.includes('Product');
 
+  // Determine if a column should be right-aligned (numeric, currency, percentage columns)
+  const isRightAligned = (col) => {
+    const lower = col.toLowerCase();
+    return lower.includes('sales') || lower.includes('units') || lower.includes('items') ||
+      lower.includes('change') || lower.includes('share') || lower.includes('total') ||
+      lower.includes('customers') || lower.includes('month') && !lower.includes('month') === false;
+  };
+  // More precise: right-align everything except SKU, Product, Variant, Month (label)
+  const getAlignment = (col) => {
+    const lower = col.toLowerCase();
+    if (lower === 'sku' || lower === 'product' || lower === 'variant' || lower === 'month') return 'text-left';
+    return 'text-right';
+  };
+
   const getCellClass = (col, value) => {
-    if (typeof value !== 'string') return 'text-slate-700';
+    const align = getAlignment(col);
+    if (typeof value !== 'string') return `text-slate-700 ${align}`;
     if (col.toLowerCase().includes('change') || col.toLowerCase().includes('share')) {
-      if (value.startsWith('+') && value !== '+0.0%') return 'text-emerald-600 font-semibold';
-      if (value.startsWith('-')) return 'text-red-600 font-semibold';
+      if (value.startsWith('+') && value !== '+0.0%') return `text-emerald-600 font-semibold ${align}`;
+      if (value.startsWith('-')) return `text-red-600 font-semibold ${align}`;
     }
-    return 'text-slate-700';
+    return `text-slate-700 ${align}`;
   };
 
   const handleSort = (col) => {
@@ -365,7 +380,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
               <th
                 key={col}
                 onClick={() => handleSort(col)}
-                className="px-4 py-3 text-left font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                className={`px-4 py-3 ${getAlignment(col)} font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors`}
               >
                 {col}{sortArrow(col)}
               </th>
@@ -399,10 +414,10 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
                       }
                       if (subtotal) {
                         const val = subtotal[col] ?? '';
-                        let colorClass = 'text-blue-900 font-semibold';
+                        let colorClass = `text-blue-900 font-semibold ${getAlignment(col)}`;
                         if (col.toLowerCase().includes('change') && typeof val === 'string') {
-                          if (val.startsWith('+') && val !== '+0.0%') colorClass = 'text-emerald-600 font-semibold';
-                          else if (val.startsWith('-')) colorClass = 'text-red-600 font-semibold';
+                          if (val.startsWith('+') && val !== '+0.0%') colorClass = `text-emerald-600 font-semibold ${getAlignment(col)}`;
+                          else if (val.startsWith('-')) colorClass = `text-red-600 font-semibold ${getAlignment(col)}`;
                         }
                         return (
                           <td key={`gh-${product}-${col}`} className={`px-4 py-2 text-sm ${colorClass}`}>
@@ -410,7 +425,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
                           </td>
                         );
                       }
-                      return <td key={`gh-${product}-${col}`} className="px-4 py-2 text-sm text-blue-900">{''}</td>;
+                      return <td key={`gh-${product}-${col}`} className={`px-4 py-2 text-sm text-blue-900 ${getAlignment(col)}`}>{''}</td>;
                     })}
                   </tr>
                   {!isCollapsed && groupRows.map((row, idx) => renderRow(row, idx))}
@@ -426,7 +441,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
             {footerRows.map((frow, fIdx) => (
               <tr key={fIdx} className={`border-t-2 border-slate-300 ${frow._style === 'highlight' ? 'bg-blue-50 font-bold' : 'bg-slate-100 font-semibold'}`}>
                 {columns.map((col) => (
-                  <td key={`f-${fIdx}-${col}`} className={`px-4 py-3 text-sm ${getCellClass(col, frow[col])}`}>
+                  <td key={`f-${fIdx}-${col}`} className={`px-4 py-3 text-sm ${getCellClass(col, frow[col] ?? '')}`}>
                     {frow[col] ?? ''}
                   </td>
                 ))}
