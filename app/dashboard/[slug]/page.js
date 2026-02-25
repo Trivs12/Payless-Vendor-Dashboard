@@ -1509,10 +1509,11 @@ export default function VendorDashboard() {
                   </div>
 
                   {/* New vs Returning Customers Area Chart */}
-                  <div className="card mt-6 mb-6">
+                  <div className="card mt-6 mb-6" style={{ maxHeight: '350px' }}>
                     <h3 className="text-lg font-bold text-slate-900 mb-4">
                       New vs Returning Customers
                     </h3>
+                    <div style={{ height: '280px' }}>
                     <Line
                       data={{
                         labels: filteredMonths.map(formatMonthTitle),
@@ -1545,6 +1546,7 @@ export default function VendorDashboard() {
                       }}
                       options={{
                         responsive: true,
+                        maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
                           legend: {
@@ -1585,6 +1587,7 @@ export default function VendorDashboard() {
                         },
                       }}
                     />
+                    </div>
                   </div>
 
                   {/* SKU by Campaign Period - Sales/Units Toggle */}
