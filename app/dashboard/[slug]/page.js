@@ -216,6 +216,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
   const [sortCol, setSortCol] = React.useState(null);
   const [sortDir, setSortDir] = React.useState('asc');
   const [groupByProduct, setGroupByProduct] = React.useState(false);
+  const [collapsedGroups, setCollapsedGroups] = React.useState({});
 
   const hasProductColumn = columns.includes('Product');
 
@@ -373,17 +374,46 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
         </thead>
         <tbody>
           {groupedData ? (
-            Object.entries(groupedData).map(([product, groupRows]) => (
-              <React.Fragment key={product}>
-                <tr className="bg-blue-50 border-b border-blue-200">
-                  <td colSpan={columns.length} className="px-4 py-2 font-semibold text-blue-900 text-sm">
-                    {product} <span className="text-blue-500 font-normal">({groupRows.length} {groupRows.length === 1 ? 'variant' : 'variants'})</span>
-                  </td>
-                </tr>
-                {groupRows.map((row, idx) => renderRow(row, idx))}
-                {groupRows.length > 1 && renderSubtotalRow(buildSubtotalRow(groupRows), product)}
-              </React.Fragment>
-            ))
+            Object.entries(groupedData).map(([product, groupRows]) => {
+              const isCollapsed = !!collapsedGroups[product];
+              const subtotal = groupRows.length > 1 ? buildSubtotalRow(groupRows) : null;
+              const toggleCollapse = () => setCollapsedGroups((prev) => ({ ...prev, [product]: !prev[product] }));
+              return (
+                <React.Fragment key={product}>
+                  <tr
+                    className="bg-blue-50 border-b border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
+                    onClick={toggleCollapse}
+                  >
+                    {columns.map((col, colIdx) => {
+                      if (colIdx === 0) {
+                        return (
+                          <td key={`gh-${product}-${col}`} className="px-4 py-2 font-semibold text-blue-900 text-sm whitespace-nowrap">
+                            <span className={`inline-block transition-transform mr-2 text-blue-400 ${isCollapsed ? '' : 'rotate-90'}`}>▶</span>
+                            {product}
+                            <span className="text-blue-500 font-normal ml-2">({groupRows.length} {groupRows.length === 1 ? 'variant' : 'variants'})</span>
+                          </td>
+                        );
+                      }
+                      if (subtotal && col !== 'SKU' && col !== 'Variant') {
+                        const val = subtotal[col] ?? '';
+                        let colorClass = 'text-blue-900 font-semibold';
+                        if (col.toLowerCase().includes('change') && typeof val === 'string') {
+                          if (val.startsWith('+') && val !== '+0.0%') colorClass = 'text-emerald-600 font-semibold';
+                          else if (val.startsWith('-')) colorClass = 'text-red-600 font-semibold';
+                        }
+                        return (
+                          <td key={`gh-${product}-${col}`} className={`px-4 py-2 text-sm ${colorClass}`}>
+                            {val}
+                          </td>
+                        );
+                      }
+                      return <td key={`gh-${product}-${col}`} className="px-4 py-2 text-sm text-blue-900">{''}</td>;
+                    })}
+                  </tr>
+                  {!isCollapsed && groupRows.map((row, idx) => renderRow(row, idx))}
+                </React.Fragment>
+              );
+            })
           ) : (
             sortedRows.map((row, idx) => renderRow(row, idx))
           )}
