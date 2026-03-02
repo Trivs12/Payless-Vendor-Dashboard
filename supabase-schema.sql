@@ -91,6 +91,20 @@ CREATE TABLE daily_product_data (
   UNIQUE(report_id, day)
 );
 
+-- Monthly customer data (deduplicated, uploaded separately from product data)
+CREATE TABLE monthly_customer_data (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  report_id UUID REFERENCES reports(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  new_customers INTEGER DEFAULT 0,
+  returning_customers INTEGER DEFAULT 0,
+  prev_new_customers INTEGER DEFAULT 0,
+  prev_returning_customers INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(report_id, month)
+);
+
 -- SKU title mapping (maps SKU to current product/variant titles)
 CREATE TABLE sku_title_map (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -116,7 +130,7 @@ CREATE TABLE upload_history (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
   report_id UUID REFERENCES reports(id) ON DELETE CASCADE,
-  file_type TEXT NOT NULL CHECK (file_type IN ('product', 'category')),
+  file_type TEXT NOT NULL CHECK (file_type IN ('product', 'category', 'customer')),
   file_name TEXT,
   row_count INTEGER,
   date_range TEXT,
@@ -133,6 +147,9 @@ CREATE INDEX idx_category_data_month ON monthly_category_data(month);
 CREATE INDEX idx_daily_product_data_vendor ON daily_product_data(vendor_id);
 CREATE INDEX idx_daily_product_data_report ON daily_product_data(report_id);
 CREATE INDEX idx_daily_product_data_day ON daily_product_data(day);
+CREATE INDEX idx_customer_data_vendor ON monthly_customer_data(vendor_id);
+CREATE INDEX idx_customer_data_report ON monthly_customer_data(report_id);
+CREATE INDEX idx_customer_data_month ON monthly_customer_data(month);
 CREATE INDEX idx_sku_title_map_report ON sku_title_map(report_id);
 CREATE INDEX idx_upload_history_report ON upload_history(report_id);
 
@@ -142,6 +159,7 @@ ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_product_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_category_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_product_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_customer_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE upload_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sku_title_map ENABLE ROW LEVEL SECURITY;
@@ -152,6 +170,7 @@ CREATE POLICY "Allow all for anon" ON reports FOR ALL USING (true) WITH CHECK (t
 CREATE POLICY "Allow all for anon" ON monthly_product_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON monthly_category_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON daily_product_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON monthly_customer_data FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON upload_history FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON app_settings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON sku_title_map FOR ALL USING (true) WITH CHECK (true);

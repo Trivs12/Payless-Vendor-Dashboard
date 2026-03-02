@@ -22,8 +22,9 @@ import {
   getSkuTitleMap,
   saveSkuTitleMap,
   deleteSkuTitleMapping,
+  saveCustomerData,
 } from '@/lib/supabase';
-import { parseProductCSV, parseCategoryCSV } from '@/lib/dataProcessing';
+import { parseProductCSV, parseCategoryCSV, parseCustomerCSV } from '@/lib/dataProcessing';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -100,6 +101,7 @@ export default function AdminPage() {
   const [selectedTab, setSelectedTab] = useState('settings');
   const [productCSVFile, setProductCSVFile] = useState(null);
   const [categoryCSVFile, setCategoryCSVFile] = useState(null);
+  const [customerCSVFile, setCustomerCSVFile] = useState(null);
   const [csvPreview, setCSVPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadHistory, setUploadHistory] = useState([]);
@@ -534,7 +536,7 @@ export default function AdminPage() {
       return;
     }
 
-    if (!productCSVFile && !categoryCSVFile) {
+    if (!productCSVFile && !categoryCSVFile && !customerCSVFile) {
       setError('Please select at least one CSV file');
       return;
     }
@@ -590,9 +592,30 @@ export default function AdminPage() {
         }
       }
 
+      // Process customer CSV if provided
+      if (customerCSVFile) {
+        const customerText = await customerCSVFile.text();
+        const customerData = parseCustomerCSV(customerText);
+
+        await saveCustomerData(reportId, customerData);
+
+        const customerMonths = Object.keys(customerData).sort();
+        if (customerMonths.length > 0) {
+          const dateRange = `${customerMonths[0]} to ${customerMonths[customerMonths.length - 1]}`;
+          await saveUploadHistory(
+            reportId,
+            'customer',
+            customerCSVFile.name,
+            customerText.split('\n').length - 1,
+            dateRange
+          );
+        }
+      }
+
       setSuccess('Files uploaded and processed successfully');
       setProductCSVFile(null);
       setCategoryCSVFile(null);
+      setCustomerCSVFile(null);
       setCSVPreview(null);
       await loadUploadHistory(reportId);
     } catch (err) {
@@ -1242,6 +1265,27 @@ export default function AdminPage() {
                           )}
                         </div>
 
+                        <div>
+                          <label className="label">Customer Data CSV</label>
+                          <p className="text-xs text-gray-500 mb-1">
+                            Deduplicated new/returning customers by day. Columns: <code className="bg-gray-100 px-1 rounded">New or returning customer</code>, <code className="bg-gray-100 px-1 rounded">Day</code>, <code className="bg-gray-100 px-1 rounded">Customers</code>, <code className="bg-gray-100 px-1 rounded">Day (previous_year)</code>, <code className="bg-gray-100 px-1 rounded">Customers (previous_year)</code>
+                          </p>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setCustomerCSVFile(file);
+                            }}
+                            className="input-field"
+                          />
+                          {customerCSVFile && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              Selected: {customerCSVFile.name}
+                            </div>
+                          )}
+                        </div>
+
                         {csvPreview && (
                           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                             <div className="text-sm font-semibold text-blue-900 mb-2">
@@ -1257,7 +1301,7 @@ export default function AdminPage() {
 
                         <button
                           type="submit"
-                          disabled={uploading || (!productCSVFile && !categoryCSVFile)}
+                          disabled={uploading || (!productCSVFile && !categoryCSVFile && !customerCSVFile)}
                           className="btn-primary"
                         >
                           {uploading ? 'Uploading...' : 'Upload & Process Files'}

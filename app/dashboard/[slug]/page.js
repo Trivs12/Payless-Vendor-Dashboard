@@ -23,6 +23,7 @@ import {
   getDailyProductData,
   getAppSetting,
   getSkuTitleMap,
+  getCustomerData,
 } from '@/lib/supabase';
 import {
   calculateYoY,
@@ -540,10 +541,11 @@ export default function VendorDashboard() {
 
         const reportId = selectedReport.id;
 
-        // Load product, category, daily data, and title mappings by report
+        // Load product, category, daily data, customer data, and title mappings by report
         const productRows = await getProductData(reportId);
         const categoryRows = await getCategoryData(reportId);
         const dailyRows = await getDailyProductData(reportId);
+        const customerRows = await getCustomerData(reportId);
         const titleMappings = await getSkuTitleMap(reportId);
 
         // Build SKU -> title lookup from mappings
@@ -685,6 +687,19 @@ export default function VendorDashboard() {
             prevReturningCustomers: parseInt(row.prev_returning_customers) || 0,
           };
         });
+
+        // Override customer counts with deduplicated uploaded customer data if available
+        if (customerRows && customerRows.length > 0) {
+          customerRows.forEach((row) => {
+            const month = row.month;
+            if (restructuredTotals[month]) {
+              restructuredTotals[month].newCustomers = parseInt(row.new_customers) || 0;
+              restructuredTotals[month].returningCustomers = parseInt(row.returning_customers) || 0;
+              restructuredTotals[month].prevNewCustomers = parseInt(row.prev_new_customers) || 0;
+              restructuredTotals[month].prevReturningCustomers = parseInt(row.prev_returning_customers) || 0;
+            }
+          });
+        }
 
         setMonthlySkuData(restructuredSkuData);
         setMonthlyTotals(restructuredTotals);
