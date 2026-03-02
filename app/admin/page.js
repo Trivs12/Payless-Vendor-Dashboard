@@ -597,9 +597,19 @@ export default function AdminPage() {
       // Process customer CSV if provided
       if (customerCSVFile) {
         const customerText = await customerCSVFile.text();
-        const customerData = parseCustomerCSV(customerText);
+        const { monthly: customerData, periodTotals } = parseCustomerCSV(customerText);
 
-        await saveCustomerData(reportId, customerData);
+        // Include period-level unique counts as a special '_period' row
+        const dataWithPeriod = {
+          ...customerData,
+          '_period': {
+            newCustomers: 0,
+            returningCustomers: periodTotals.uniqueReturningCustomers,
+            prevNewCustomers: 0,
+            prevReturningCustomers: periodTotals.prevUniqueReturningCustomers,
+          },
+        };
+        await saveCustomerData(reportId, dataWithPeriod);
 
         const customerMonths = Object.keys(customerData).sort();
         if (customerMonths.length > 0) {
