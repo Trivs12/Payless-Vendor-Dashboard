@@ -188,6 +188,13 @@ const formatMonthTitle = (monthStr) => {
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 };
 
+// Abbreviated: "Sept 2025", "Oct 2025"
+const formatMonthShort = (monthStr) => {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+};
+
 // Helper: parse display value for sorting (extract number from formatted strings)
 const parseSortValue = (value) => {
   if (value === null || value === undefined || value === '—') return -Infinity;
@@ -1739,7 +1746,7 @@ export default function VendorDashboard() {
                       'SKU',
                       'Product',
                       'Variant',
-                      ...filteredMonths.map(formatMonthTitle),
+                      ...filteredMonths.map(formatMonthShort),
                       'Total',
                     ]}
                     rows={Object.keys(
@@ -1755,11 +1762,11 @@ export default function VendorDashboard() {
                       filteredMonths.forEach((month) => {
                         if (skuView === 'sales') {
                           const sales = monthlySkuData[month][sku]?.totalSales || 0;
-                          row[formatMonthTitle(month)] = formatCurrency(sales);
+                          row[formatMonthShort(month)] = formatCurrency(sales);
                           total += sales;
                         } else {
                           const units = monthlySkuData[month][sku]?.netItems || 0;
-                          row[formatMonthTitle(month)] = units.toLocaleString();
+                          row[formatMonthShort(month)] = units.toLocaleString();
                           total += units;
                         }
                       });
