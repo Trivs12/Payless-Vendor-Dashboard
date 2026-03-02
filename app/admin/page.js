@@ -67,6 +67,7 @@ export default function AdminPage() {
     monthly_budget: '',
     show_budget: false,
     hide_pdf_export: false,
+    hide_category_tab: false,
     campaign_start: '',
     campaign_end: '',
     notes: '',
@@ -410,6 +411,7 @@ export default function AdminPage() {
           monthly_budget: '',
           show_budget: false,
           hide_pdf_export: false,
+          hide_category_tab: false,
           campaign_start: '',
           campaign_end: '',
           notes: '',
@@ -874,6 +876,7 @@ export default function AdminPage() {
                       monthly_budget: '',
                       show_budget: false,
                       hide_pdf_export: false,
+                      hide_category_tab: false,
                       campaign_start: '',
                       campaign_end: '',
                       notes: '',
@@ -1071,6 +1074,22 @@ export default function AdminPage() {
                             className="h-4 w-4"
                           />
                           <span className="text-sm font-medium">Hide Export to PDF</span>
+                        </label>
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.hide_category_tab}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                hide_category_tab: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm font-medium">Hide Category Share Tab</span>
                         </label>
                       </div>
                     </div>

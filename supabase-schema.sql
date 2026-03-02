@@ -15,6 +15,7 @@ CREATE TABLE vendors (
   monthly_budget NUMERIC(10,2),
   show_budget BOOLEAN DEFAULT false,
   hide_pdf_export BOOLEAN DEFAULT false,
+  hide_category_tab BOOLEAN DEFAULT false,
   campaign_start DATE,
   campaign_end DATE,
   sku_map JSONB DEFAULT '{}',

@@ -1002,12 +1002,14 @@ export default function VendorDashboard() {
               value={campaignNewCustomers}
               previousValue={campaignPrevNewCustomers}
             />
-            <KPICard
-              title="Category Share"
-              value={parseFloat(categoryShare)}
-              previousValue={parseFloat(prevCategoryShare)}
-              isPercentage
-            />
+            {!vendor?.hide_category_tab && (
+              <KPICard
+                title="Category Share"
+                value={parseFloat(categoryShare)}
+                previousValue={parseFloat(prevCategoryShare)}
+                isPercentage
+              />
+            )}
           </div>
 
           {/* Tabs */}
@@ -1017,7 +1019,7 @@ export default function VendorDashboard() {
                 'Campaign Period',
                 'Year-over-Year',
                 'Month-over-Month',
-                'Category Share',
+                ...(vendor?.hide_category_tab ? [] : ['Category Share']),
               ]}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
