@@ -218,6 +218,8 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
   const [sortDir, setSortDir] = React.useState('asc');
   const [groupByProduct, setGroupByProduct] = React.useState(false);
   const [collapsedGroups, setCollapsedGroups] = React.useState({});
+  const [colWidths, setColWidths] = React.useState({});
+  const resizingRef = React.useRef(null);
 
   const hasProductColumn = columns.includes('Product');
 
@@ -246,12 +248,41 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
   };
 
   const handleSort = (col) => {
+    if (resizingRef.current) return; // don't sort while resizing
     if (sortCol === col) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     } else {
       setSortCol(col);
       setSortDir('asc');
     }
+  };
+
+  const handleResizeStart = (col, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = e.target.parentElement;
+    const startX = e.clientX;
+    const startWidth = th.offsetWidth;
+    resizingRef.current = col;
+
+    const onMouseMove = (moveE) => {
+      const diff = moveE.clientX - startX;
+      const newWidth = Math.max(60, startWidth + diff);
+      setColWidths((prev) => ({ ...prev, [col]: newWidth }));
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setTimeout(() => { resizingRef.current = null; }, 0);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   };
 
   // Sort rows
@@ -381,9 +412,15 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
               <th
                 key={col}
                 onClick={() => handleSort(col)}
-                className={`px-4 py-3 ${getAlignment(col)} font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors`}
+                className={`px-4 py-3 ${getAlignment(col)} font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors relative`}
+                style={colWidths[col] ? { width: colWidths[col], minWidth: colWidths[col] } : undefined}
               >
                 {col}{sortArrow(col)}
+                <span
+                  onMouseDown={(e) => handleResizeStart(col, e)}
+                  className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400/50 active:bg-blue-500/50"
+                  onClick={(e) => e.stopPropagation()}
+                />
               </th>
             ))}
           </tr>
