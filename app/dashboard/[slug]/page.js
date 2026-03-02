@@ -392,7 +392,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
           {groupedData ? (
             Object.entries(groupedData).map(([product, groupRows]) => {
               const isCollapsed = !!collapsedGroups[product];
-              const subtotal = groupRows.length > 1 ? buildSubtotalRow(groupRows) : null;
+              const subtotal = groupRows.length > 1 ? buildSubtotalRow(groupRows) : groupRows[0];
               const toggleCollapse = () => setCollapsedGroups((prev) => ({ ...prev, [product]: !prev[product] }));
               return (
                 <React.Fragment key={product}>
