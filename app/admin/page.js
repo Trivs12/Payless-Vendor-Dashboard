@@ -1297,7 +1297,7 @@ export default function AdminPage() {
                         <div>
                           <label className="label">Customer Data CSV</label>
                           <p className="text-xs text-gray-500 mb-1">
-                            Deduplicated new/returning customers by day. Columns: <code className="bg-gray-100 px-1 rounded">New or returning customer</code>, <code className="bg-gray-100 px-1 rounded">Day</code>, <code className="bg-gray-100 px-1 rounded">Customers</code>, <code className="bg-gray-100 px-1 rounded">Day (previous_year)</code>, <code className="bg-gray-100 px-1 rounded">Customers (previous_year)</code>
+                            One row per customer per day with binary flags. Columns: <code className="bg-gray-100 px-1 rounded">Day</code>, <code className="bg-gray-100 px-1 rounded">Customer ID</code>, <code className="bg-gray-100 px-1 rounded">New customers</code>, <code className="bg-gray-100 px-1 rounded">Returning customers</code>, <code className="bg-gray-100 px-1 rounded">Day (previous_year)</code>, <code className="bg-gray-100 px-1 rounded">New customers (previous_year)</code>, <code className="bg-gray-100 px-1 rounded">Returning customers (previous_year)</code>
                           </p>
                           <input
                             type="file"
