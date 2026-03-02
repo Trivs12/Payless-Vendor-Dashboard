@@ -351,7 +351,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
       className={`border-b border-slate-100 ${(idx + bgOffset) % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
     >
       {columns.map((col) => (
-        <td key={`${idx}-${col}`} className={`px-4 py-3 ${getCellClass(col, row[col])}`}>
+        <td key={`${idx}-${col}`} className={`px-4 py-3 ${col === 'Product' ? 'whitespace-nowrap ' : ''}${getCellClass(col, row[col])}`}>
           {row[col] ?? '—'}
         </td>
       ))}
@@ -374,7 +374,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
           </button>
         </div>
       )}
-      <table className={`w-full text-sm ${className}`}>
+      <table className={`min-w-full text-sm ${className}`} style={{ tableLayout: 'auto' }}>
         <thead>
           <tr className="bg-slate-50 border-b-2 border-slate-200">
             {columns.map((col) => (
@@ -403,7 +403,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
                     {columns.map((col) => {
                       if (col === 'Product') {
                         return (
-                          <td key={`gh-${product}-${col}`} className="px-4 py-2 font-semibold text-blue-900 text-sm">
+                          <td key={`gh-${product}-${col}`} className="px-4 py-2 font-semibold text-blue-900 text-sm whitespace-nowrap">
                             <span className={`inline-block transition-transform mr-2 text-blue-400 ${isCollapsed ? '' : 'rotate-90'}`}>▶</span>
                             {product}
                             <span className="text-blue-500 font-normal ml-2">({groupRows.length})</span>
