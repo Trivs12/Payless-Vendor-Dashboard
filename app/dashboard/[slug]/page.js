@@ -420,7 +420,7 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
                 key={col}
                 onClick={() => handleSort(col)}
                 className={`px-4 py-3 ${getAlignment(col)} font-bold text-slate-900 whitespace-nowrap cursor-pointer select-none hover:bg-slate-100 transition-colors relative`}
-                style={colWidths[col] ? { width: colWidths[col], minWidth: colWidths[col] } : undefined}
+                style={colWidths[col] ? { width: colWidths[col], minWidth: colWidths[col] } : col === 'Product' ? { minWidth: 280 } : undefined}
               >
                 {col}{sortArrow(col)}
                 <span
