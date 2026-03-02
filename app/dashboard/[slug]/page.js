@@ -1392,7 +1392,7 @@ export default function VendorDashboard() {
                       ))}
                     </div>
                   </div>
-                  {filteredMonths.map((month) => {
+                  {[...filteredMonths].reverse().map((month, rIdx) => {
                     const skuKeys = Object.keys(monthlySkuData[month] || {});
                     const totalCurrent = skuView === 'sales'
                       ? skuKeys.reduce((sum, sku) => sum + (monthlySkuData[month][sku]?.totalSales || 0), 0)
@@ -1402,7 +1402,7 @@ export default function VendorDashboard() {
                       : skuKeys.reduce((sum, sku) => sum + (monthlySkuData[month][sku]?.prevNetItems || 0), 0);
                     const daysInMonth = getDaysInMonth(month);
                     return (
-                    <details key={`${skuView}-${month}`} className="mb-6" open>
+                    <details key={`${skuView}-${month}`} className="mb-6" open={rIdx === 0}>
                       <summary className="text-md font-semibold text-slate-700 mb-2 cursor-pointer hover:text-slate-900 select-none list-none">
                         <div className="flex items-center gap-2">
                           <span className="text-slate-400 inline-block transition-transform">▶</span>
@@ -1489,7 +1489,7 @@ export default function VendorDashboard() {
                           ))}
                         </div>
                       </div>
-                      {[...filteredMonths].reverse().map((month) => {
+                      {[...filteredMonths].reverse().map((month, rIdx) => {
                         const origIdx = filteredMonths.indexOf(month);
                         if (origIdx === 0) return null;
                         const prevMonth = filteredMonths[origIdx - 1];
@@ -1505,7 +1505,7 @@ export default function VendorDashboard() {
                         const totalPriorVal = skuView === 'sales' ? totalPriorSales : totalPriorUnits;
 
                         return (
-                          <details key={`${skuView}-${month}`} className="mb-8">
+                          <details key={`${skuView}-${month}`} className="mb-8" open={rIdx === 0}>
                             <summary className="text-lg font-bold text-slate-900 mb-3 cursor-pointer hover:text-slate-700 select-none list-none">
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-400 inline-block transition-transform">▶</span>
