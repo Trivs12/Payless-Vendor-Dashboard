@@ -292,6 +292,20 @@ const DataTable = ({ columns, rows, className = '', enableGrouping = false, foot
     document.addEventListener('mouseup', onMouseUp);
   };
 
+  // Collapse all groups by default when grouping is enabled
+  React.useEffect(() => {
+    if (groupByProduct && hasProductColumn) {
+      const allProducts = {};
+      rows.forEach((row) => {
+        const product = row['Product'] || 'Other';
+        allProducts[product] = true;
+      });
+      setCollapsedGroups(allProducts);
+    } else {
+      setCollapsedGroups({});
+    }
+  }, [groupByProduct]);
+
   // Sort rows
   const sortedRows = React.useMemo(() => {
     if (!sortCol) return rows;
@@ -1475,9 +1489,10 @@ export default function VendorDashboard() {
                           ))}
                         </div>
                       </div>
-                      {filteredMonths.map((month, idx) => {
-                        if (idx === 0) return null;
-                        const prevMonth = filteredMonths[idx - 1];
+                      {[...filteredMonths].reverse().map((month) => {
+                        const origIdx = filteredMonths.indexOf(month);
+                        if (origIdx === 0) return null;
+                        const prevMonth = filteredMonths[origIdx - 1];
                         const skuKeys = Object.keys(monthlySkuData[month] || {});
                         const totalCurrentSales = skuKeys.reduce((sum, sku) => sum + (monthlySkuData[month][sku]?.totalSales || 0), 0);
                         const totalPriorSales = skuKeys.reduce((sum, sku) => sum + (monthlySkuData[prevMonth]?.[sku]?.totalSales || 0), 0);
@@ -1490,7 +1505,7 @@ export default function VendorDashboard() {
                         const totalPriorVal = skuView === 'sales' ? totalPriorSales : totalPriorUnits;
 
                         return (
-                          <details key={`${skuView}-${month}`} className="mb-8" open>
+                          <details key={`${skuView}-${month}`} className="mb-8">
                             <summary className="text-lg font-bold text-slate-900 mb-3 cursor-pointer hover:text-slate-700 select-none list-none">
                               <div className="flex items-center gap-2">
                                 <span className="text-slate-400 inline-block transition-transform">▶</span>
@@ -1520,7 +1535,7 @@ export default function VendorDashboard() {
                                 })}
                                 footerRows={[
                                   { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Month': formatCurrency(totalCurrentSales), 'Prior Month': formatCurrency(totalPriorSales), 'Change %': formatPercent(totalCurrentSales, totalPriorSales), _style: 'highlight' },
-                                  { 'SKU': '', 'Product': 'Avg Daily Sales', 'Variant': '', 'Current Month': formatCurrency(totalCurrentSales / daysInCurrent), 'Prior Month': formatCurrency(totalPriorSales / daysInPrior), 'Change %': '', _style: 'default' },
+                                  { 'SKU': '', 'Product': 'Avg Daily Sales', 'Variant': '', 'Current Month': formatCurrency(totalCurrentSales / daysInCurrent), 'Prior Month': formatCurrency(totalPriorSales / daysInPrior), 'Change %': formatPercent(totalCurrentSales / daysInCurrent, totalPriorSales / daysInPrior), _style: 'default' },
                                 ]}
                               />
                             ) : (
@@ -1540,7 +1555,7 @@ export default function VendorDashboard() {
                                 })}
                                 footerRows={[
                                   { 'SKU': '', 'Product': 'Total', 'Variant': '', 'Current Month': totalCurrentUnits.toLocaleString(), 'Prior Month': totalPriorUnits.toLocaleString(), 'Change %': formatPercent(totalCurrentUnits, totalPriorUnits), _style: 'highlight' },
-                                  { 'SKU': '', 'Product': 'Avg Daily Units', 'Variant': '', 'Current Month': (totalCurrentUnits / daysInCurrent).toFixed(1), 'Prior Month': (totalPriorUnits / daysInPrior).toFixed(1), 'Change %': '', _style: 'default' },
+                                  { 'SKU': '', 'Product': 'Avg Daily Units', 'Variant': '', 'Current Month': (totalCurrentUnits / daysInCurrent).toFixed(1), 'Prior Month': (totalPriorUnits / daysInPrior).toFixed(1), 'Change %': formatPercent(totalCurrentUnits / daysInCurrent, totalPriorUnits / daysInPrior), _style: 'default' },
                                 ]}
                               />
                             )}
