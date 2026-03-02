@@ -102,6 +102,8 @@ CREATE TABLE monthly_customer_data (
   returning_customers INTEGER DEFAULT 0,
   prev_new_customers INTEGER DEFAULT 0,
   prev_returning_customers INTEGER DEFAULT 0,
+  returning_customer_ids JSONB DEFAULT '[]'::jsonb,
+  prev_returning_customer_ids JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(report_id, month)
 );

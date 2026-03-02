@@ -540,8 +540,7 @@ export default function VendorDashboard() {
   const [chartView, setChartView] = useState('month'); // 'month', 'week', or 'day'
   const [skuView, setSkuView] = useState('sales'); // 'sales' or 'units'
   const [companyLogo, setCompanyLogo] = useState(null);
-  const [periodUniqueReturning, setPeriodUniqueReturning] = useState(null);
-  const [periodPrevUniqueReturning, setPeriodPrevUniqueReturning] = useState(null);
+  const [customerIdsByMonth, setCustomerIdsByMonth] = useState({});
 
   // Auth check and data loading
   useEffect(() => {
@@ -749,27 +748,26 @@ export default function VendorDashboard() {
         });
 
         // Override customer counts with deduplicated uploaded customer data if available
-        let periodUniqueReturning = null;
-        let periodPrevUniqueReturning = null;
+        const customerIdsByMonth = {};
         if (customerRows && customerRows.length > 0) {
           customerRows.forEach((row) => {
             const month = row.month;
-            if (month === '_period') {
-              // Extract period-level unique returning customer counts
-              periodUniqueReturning = parseInt(row.returning_customers) || 0;
-              periodPrevUniqueReturning = parseInt(row.prev_returning_customers) || 0;
-              return;
-            }
             if (restructuredTotals[month]) {
               restructuredTotals[month].newCustomers = parseInt(row.new_customers) || 0;
               restructuredTotals[month].returningCustomers = parseInt(row.returning_customers) || 0;
               restructuredTotals[month].prevNewCustomers = parseInt(row.prev_new_customers) || 0;
               restructuredTotals[month].prevReturningCustomers = parseInt(row.prev_returning_customers) || 0;
             }
+            // Store customer ID arrays for cross-month deduplication
+            if (row.returning_customer_ids || row.prev_returning_customer_ids) {
+              customerIdsByMonth[month] = {
+                returningIds: row.returning_customer_ids || [],
+                prevReturningIds: row.prev_returning_customer_ids || [],
+              };
+            }
           });
         }
-        setPeriodUniqueReturning(periodUniqueReturning);
-        setPeriodPrevUniqueReturning(periodPrevUniqueReturning);
+        setCustomerIdsByMonth(customerIdsByMonth);
 
         setMonthlySkuData(restructuredSkuData);
         setMonthlyTotals(restructuredTotals);
@@ -934,17 +932,25 @@ export default function VendorDashboard() {
     0
   );
 
-  // Calculate returning customers — use period-level dedup when all months selected, otherwise sum monthly
-  const allMonthsSelected = filteredMonths.length === months.length;
-  const campaignReturningCustomers = periodUniqueReturning !== null
-    ? (allMonthsSelected
-        ? periodUniqueReturning
-        : filteredMonths.reduce((sum, m) => sum + (monthlyTotals[m]?.returningCustomers || 0), 0))
+  // Calculate unique returning customers — deduplicate across filtered months using stored customer IDs
+  const hasCustomerIds = Object.keys(customerIdsByMonth).length > 0;
+  const campaignReturningCustomers = hasCustomerIds
+    ? (() => {
+        const uniqueIds = new Set();
+        filteredMonths.forEach((m) => {
+          (customerIdsByMonth[m]?.returningIds || []).forEach((id) => uniqueIds.add(id));
+        });
+        return uniqueIds.size;
+      })()
     : null;
-  const campaignPrevReturningCustomers = periodPrevUniqueReturning !== null
-    ? (allMonthsSelected
-        ? periodPrevUniqueReturning
-        : filteredMonths.reduce((sum, m) => sum + (monthlyTotals[m]?.prevReturningCustomers || 0), 0))
+  const campaignPrevReturningCustomers = hasCustomerIds
+    ? (() => {
+        const uniqueIds = new Set();
+        filteredMonths.forEach((m) => {
+          (customerIdsByMonth[m]?.prevReturningIds || []).forEach((id) => uniqueIds.add(id));
+        });
+        return uniqueIds.size;
+      })()
     : null;
 
   // Calculate category share (product sales / category sales)
@@ -1068,7 +1074,7 @@ export default function VendorDashboard() {
           <InsightBox insights={resolvedExecutive} />
 
           {/* KPI Cards */}
-          <div className={`grid grid-cols-1 md:grid-cols-2 ${periodUniqueReturning !== null && !vendor?.hide_category_tab ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 mb-6`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${hasCustomerIds && !vendor?.hide_category_tab ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 mb-6`}>
             <KPICard
               title="Total Sales"
               value={campaignTotalSales}
