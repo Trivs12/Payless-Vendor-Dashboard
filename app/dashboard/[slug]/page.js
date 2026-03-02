@@ -934,6 +934,19 @@ export default function VendorDashboard() {
     0
   );
 
+  // Calculate returning customers — use period-level dedup when all months selected, otherwise sum monthly
+  const allMonthsSelected = filteredMonths.length === months.length;
+  const campaignReturningCustomers = periodUniqueReturning !== null
+    ? (allMonthsSelected
+        ? periodUniqueReturning
+        : filteredMonths.reduce((sum, m) => sum + (monthlyTotals[m]?.returningCustomers || 0), 0))
+    : null;
+  const campaignPrevReturningCustomers = periodPrevUniqueReturning !== null
+    ? (allMonthsSelected
+        ? periodPrevUniqueReturning
+        : filteredMonths.reduce((sum, m) => sum + (monthlyTotals[m]?.prevReturningCustomers || 0), 0))
+    : null;
+
   // Calculate category share (product sales / category sales)
   const totalCategorySales = filteredMonths.reduce(
     (sum, m) => sum + (categoryMonthly[m]?.totalSales || 0),
@@ -1072,11 +1085,11 @@ export default function VendorDashboard() {
               value={campaignNewCustomers}
               previousValue={campaignPrevNewCustomers}
             />
-            {periodUniqueReturning !== null && (
+            {campaignReturningCustomers !== null && (
               <KPICard
                 title="Unique Returning Customers"
-                value={periodUniqueReturning}
-                previousValue={periodPrevUniqueReturning}
+                value={campaignReturningCustomers}
+                previousValue={campaignPrevReturningCustomers}
               />
             )}
             {!vendor?.hide_category_tab && (
