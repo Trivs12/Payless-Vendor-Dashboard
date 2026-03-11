@@ -541,6 +541,8 @@ export default function VendorDashboard() {
   const [skuView, setSkuView] = useState('sales'); // 'sales' or 'units'
   const [companyLogo, setCompanyLogo] = useState(null);
   const [customerIdsByMonth, setCustomerIdsByMonth] = useState({});
+  const [preCampaignCustomerData, setPreCampaignCustomerData] = useState({});
+  const [showPreCampaign, setShowPreCampaign] = useState(false);
 
   // Auth check and data loading
   useEffect(() => {
@@ -749,14 +751,27 @@ export default function VendorDashboard() {
 
         // Override customer counts with deduplicated uploaded customer data if available
         const customerIdsByMonth = {};
+        const preCampaignCustomerData = {};
+        const campaignStartMonth = vendor?.campaign_start
+          ? vendor.campaign_start.substring(0, 7) // 'YYYY-MM-DD' -> 'YYYY-MM'
+          : null;
         if (customerRows && customerRows.length > 0) {
           customerRows.forEach((row) => {
             const month = row.month;
             if (restructuredTotals[month]) {
+              // Campaign month — override totals
               restructuredTotals[month].newCustomers = parseInt(row.new_customers) || 0;
               restructuredTotals[month].returningCustomers = parseInt(row.returning_customers) || 0;
               restructuredTotals[month].prevNewCustomers = parseInt(row.prev_new_customers) || 0;
               restructuredTotals[month].prevReturningCustomers = parseInt(row.prev_returning_customers) || 0;
+            } else if (campaignStartMonth && month < campaignStartMonth) {
+              // Pre-campaign month — store separately
+              preCampaignCustomerData[month] = {
+                newCustomers: parseInt(row.new_customers) || 0,
+                returningCustomers: parseInt(row.returning_customers) || 0,
+                prevNewCustomers: parseInt(row.prev_new_customers) || 0,
+                prevReturningCustomers: parseInt(row.prev_returning_customers) || 0,
+              };
             }
             // Store customer ID arrays for cross-month deduplication
             if (row.returning_customer_ids || row.prev_returning_customer_ids) {
@@ -768,6 +783,7 @@ export default function VendorDashboard() {
           });
         }
         setCustomerIdsByMonth(customerIdsByMonth);
+        setPreCampaignCustomerData(preCampaignCustomerData);
 
         setMonthlySkuData(restructuredSkuData);
         setMonthlyTotals(restructuredTotals);
@@ -1692,36 +1708,98 @@ export default function VendorDashboard() {
                   </div>
 
                   {/* New vs Returning Customers Area Chart */}
-                  <div className="card mt-6 mb-6" style={{ maxHeight: '350px' }}>
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">
-                      New vs Returning Customers
-                    </h3>
-                    <div style={{ height: '280px' }}>
+                  {(() => {
+                    const preCampaignMonths = Object.keys(preCampaignCustomerData).sort();
+                    const hasPreCampaign = preCampaignMonths.length > 0;
+                    const chartMonths = showPreCampaign && hasPreCampaign
+                      ? [...preCampaignMonths, ...filteredMonths]
+                      : filteredMonths;
+                    const campaignStartIdx = showPreCampaign && hasPreCampaign
+                      ? preCampaignMonths.length
+                      : 0;
+                    return (
+                  <div className="card mt-6 mb-6" style={{ maxHeight: '400px' }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-slate-900">
+                        New vs Returning Customers
+                      </h3>
+                      {hasPreCampaign && (
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showPreCampaign}
+                            onChange={(e) => setShowPreCampaign(e.target.checked)}
+                            className="rounded border-slate-300"
+                          />
+                          Show Pre-Campaign
+                        </label>
+                      )}
+                    </div>
+                    <div style={{ height: '300px' }}>
                     <Line
                       data={{
-                        labels: filteredMonths.map(formatMonthTitle),
+                        labels: chartMonths.map((m, i) => {
+                          const label = formatMonthTitle(m);
+                          return showPreCampaign && hasPreCampaign && i === campaignStartIdx
+                            ? `${label}`
+                            : label;
+                        }),
                         datasets: [
                           {
                             label: 'New Customers',
-                            data: filteredMonths.map((m) => monthlyTotals[m]?.newCustomers || 0),
-                            borderColor: '#17A5EB',
-                            backgroundColor: 'rgba(23, 165, 235, 0.15)',
+                            data: chartMonths.map((m) => {
+                              if (preCampaignCustomerData[m]) return preCampaignCustomerData[m].newCustomers;
+                              return monthlyTotals[m]?.newCustomers || 0;
+                            }),
+                            borderColor: chartMonths.map((m, i) =>
+                              showPreCampaign && i < campaignStartIdx ? 'rgba(23, 165, 235, 0.4)' : '#17A5EB'
+                            ),
+                            backgroundColor: chartMonths.map((m, i) =>
+                              showPreCampaign && i < campaignStartIdx ? 'rgba(23, 165, 235, 0.05)' : 'rgba(23, 165, 235, 0.15)'
+                            ),
+                            segment: {
+                              borderColor: (ctx) =>
+                                showPreCampaign && ctx.p0DataIndex < campaignStartIdx
+                                  ? 'rgba(23, 165, 235, 0.4)'
+                                  : '#17A5EB',
+                              borderDash: (ctx) =>
+                                showPreCampaign && ctx.p0DataIndex < campaignStartIdx
+                                  ? [5, 5]
+                                  : undefined,
+                            },
                             borderWidth: 2.5,
                             pointRadius: 4,
-                            pointBackgroundColor: '#17A5EB',
-                            fill: true,
+                            pointBackgroundColor: chartMonths.map((m, i) =>
+                              showPreCampaign && i < campaignStartIdx ? 'rgba(23, 165, 235, 0.4)' : '#17A5EB'
+                            ),
+                            fill: false,
                             tension: 0.4,
                             order: 1,
                           },
                           {
                             label: 'Returning Customers',
-                            data: filteredMonths.map((m) => monthlyTotals[m]?.returningCustomers || 0),
+                            data: chartMonths.map((m) => {
+                              if (preCampaignCustomerData[m]) return preCampaignCustomerData[m].returningCustomers;
+                              return monthlyTotals[m]?.returningCustomers || 0;
+                            }),
+                            segment: {
+                              borderColor: (ctx) =>
+                                showPreCampaign && ctx.p0DataIndex < campaignStartIdx
+                                  ? 'rgba(136, 198, 230, 0.4)'
+                                  : '#88C6E6',
+                              borderDash: (ctx) =>
+                                showPreCampaign && ctx.p0DataIndex < campaignStartIdx
+                                  ? [5, 5]
+                                  : undefined,
+                            },
                             borderColor: '#88C6E6',
                             backgroundColor: 'rgba(136, 198, 230, 0.15)',
                             borderWidth: 2,
                             pointRadius: 4,
-                            pointBackgroundColor: '#88C6E6',
-                            fill: true,
+                            pointBackgroundColor: chartMonths.map((m, i) =>
+                              showPreCampaign && i < campaignStartIdx ? 'rgba(136, 198, 230, 0.4)' : '#88C6E6'
+                            ),
+                            fill: false,
                             tension: 0.4,
                             order: 2,
                           },
@@ -1755,7 +1833,13 @@ export default function VendorDashboard() {
                         scales: {
                           x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8', font: { size: 12 } },
+                            ticks: {
+                              color: (ctx) =>
+                                showPreCampaign && hasPreCampaign && ctx.index < campaignStartIdx
+                                  ? '#cbd5e1'
+                                  : '#94a3b8',
+                              font: { size: 12 },
+                            },
                           },
                           y: {
                             beginAtZero: true,
@@ -1769,9 +1853,35 @@ export default function VendorDashboard() {
                           },
                         },
                       }}
+                      plugins={showPreCampaign && hasPreCampaign ? [{
+                        id: 'campaignStartLine',
+                        afterDraw: (chart) => {
+                          const xScale = chart.scales.x;
+                          const yScale = chart.scales.y;
+                          if (!xScale || campaignStartIdx <= 0) return;
+                          const x = xScale.getPixelForValue(campaignStartIdx - 0.5);
+                          const ctx = chart.ctx;
+                          ctx.save();
+                          ctx.beginPath();
+                          ctx.setLineDash([6, 4]);
+                          ctx.strokeStyle = '#94a3b8';
+                          ctx.lineWidth = 1.5;
+                          ctx.moveTo(x, yScale.top);
+                          ctx.lineTo(x, yScale.bottom);
+                          ctx.stroke();
+                          ctx.setLineDash([]);
+                          ctx.fillStyle = '#64748b';
+                          ctx.font = '11px sans-serif';
+                          ctx.textAlign = 'center';
+                          ctx.fillText('Campaign Start', x, yScale.top - 6);
+                          ctx.restore();
+                        },
+                      }] : []}
                     />
                     </div>
                   </div>
+                    );
+                  })()}
 
                   {/* SKU by Campaign Period - Sales/Units Toggle */}
                   <div className="flex items-center justify-between mb-4 mt-8">
