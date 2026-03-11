@@ -752,8 +752,8 @@ export default function VendorDashboard() {
         // Override customer counts with deduplicated uploaded customer data if available
         const customerIdsByMonth = {};
         const preCampaignCustomerData = {};
-        const campaignStartMonth = vendor?.campaign_start
-          ? vendor.campaign_start.substring(0, 7) // 'YYYY-MM-DD' -> 'YYYY-MM'
+        const campaignStartMonth = vendorData?.campaign_start
+          ? vendorData.campaign_start.substring(0, 7) // 'YYYY-MM-DD' -> 'YYYY-MM'
           : null;
         if (customerRows && customerRows.length > 0) {
           customerRows.forEach((row) => {
