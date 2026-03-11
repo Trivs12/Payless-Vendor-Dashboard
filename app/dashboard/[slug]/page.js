@@ -1867,13 +1867,14 @@ export default function VendorDashboard() {
                       }}
                       plugins={showPreCampaign && hasPreCampaign ? [{
                         id: 'campaignStartLine',
-                        afterDraw: (chart) => {
+                        afterDatasetsDraw: (chart) => {
                           const xScale = chart.scales.x;
                           const yScale = chart.scales.y;
                           if (!xScale || campaignStartIdx <= 0) return;
                           const x = xScale.getPixelForValue(campaignStartIdx - 0.5);
                           const ctx = chart.ctx;
                           ctx.save();
+                          // Draw vertical line
                           ctx.beginPath();
                           ctx.setLineDash([6, 4]);
                           ctx.strokeStyle = '#334155';
@@ -1882,10 +1883,17 @@ export default function VendorDashboard() {
                           ctx.lineTo(x, yScale.bottom);
                           ctx.stroke();
                           ctx.setLineDash([]);
-                          ctx.fillStyle = '#1e293b';
+                          // Draw label with background
+                          const label = 'Campaign Start';
                           ctx.font = 'bold 11px sans-serif';
+                          const textWidth = ctx.measureText(label).width;
+                          const labelX = x;
+                          const labelY = yScale.top + 16;
+                          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                          ctx.fillRect(labelX - textWidth / 2 - 4, labelY - 11, textWidth + 8, 15);
+                          ctx.fillStyle = '#334155';
                           ctx.textAlign = 'center';
-                          ctx.fillText('Campaign Start', x, yScale.top - 6);
+                          ctx.fillText(label, labelX, labelY);
                           ctx.restore();
                         },
                       }] : []}
