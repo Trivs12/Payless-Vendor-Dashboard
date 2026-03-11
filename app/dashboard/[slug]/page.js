@@ -1054,6 +1054,16 @@ export default function VendorDashboard() {
                 <img src={companyLogo} alt="Company logo" className="h-7 object-contain" />
               </div>
             )}
+
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('auth');
+                router.push('/');
+              }}
+              className="ml-4 px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </nav>
@@ -1768,11 +1778,12 @@ export default function VendorDashboard() {
                                   : undefined,
                             },
                             borderWidth: 2.5,
-                            pointRadius: 4,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
                             pointBackgroundColor: chartMonths.map((m, i) =>
                               showPreCampaign && i < campaignStartIdx ? 'rgba(23, 165, 235, 0.4)' : '#17A5EB'
                             ),
-                            fill: false,
+                            fill: true,
                             tension: 0.4,
                             order: 1,
                           },
@@ -1795,11 +1806,12 @@ export default function VendorDashboard() {
                             borderColor: '#88C6E6',
                             backgroundColor: 'rgba(136, 198, 230, 0.15)',
                             borderWidth: 2,
-                            pointRadius: 4,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
                             pointBackgroundColor: chartMonths.map((m, i) =>
                               showPreCampaign && i < campaignStartIdx ? 'rgba(136, 198, 230, 0.4)' : '#88C6E6'
                             ),
-                            fill: false,
+                            fill: true,
                             tension: 0.4,
                             order: 2,
                           },
