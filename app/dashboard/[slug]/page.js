@@ -1876,14 +1876,14 @@ export default function VendorDashboard() {
                           ctx.save();
                           ctx.beginPath();
                           ctx.setLineDash([6, 4]);
-                          ctx.strokeStyle = '#94a3b8';
-                          ctx.lineWidth = 1.5;
+                          ctx.strokeStyle = '#334155';
+                          ctx.lineWidth = 2;
                           ctx.moveTo(x, yScale.top);
                           ctx.lineTo(x, yScale.bottom);
                           ctx.stroke();
                           ctx.setLineDash([]);
-                          ctx.fillStyle = '#64748b';
-                          ctx.font = '11px sans-serif';
+                          ctx.fillStyle = '#1e293b';
+                          ctx.font = 'bold 11px sans-serif';
                           ctx.textAlign = 'center';
                           ctx.fillText('Campaign Start', x, yScale.top - 6);
                           ctx.restore();
